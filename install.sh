@@ -3,7 +3,20 @@
 # DevOps Toolkit Installation Script
 # Modern installation with Python checks and uv support
 
+# Exit on error, but handle errors gracefully
 set -e
+trap 'handle_error $? $LINENO' ERR
+
+# Error handler
+handle_error() {
+    local exit_code=$1
+    local line_number=$2
+    echo ""
+    print_message "$RED" "✗ Installation failed at line $line_number with exit code $exit_code"
+    print_message "$YELLOW" "  Please check the error message above and try again"
+    print_message "$YELLOW" "  For help, visit: https://github.com/sameeralam3127/devops-toolkit/issues"
+    exit "$exit_code"
+}
 
 # Colors for output
 RED='\033[0;31m'
@@ -31,7 +44,7 @@ print_message() {
 print_header() {
     echo ""
     print_message "$BLUE" "╔════════════════════════════════════════╗"
-    print_message "$BLUE" "║     DevOps Toolkit Installation       ║"
+    print_message "$BLUE" "║     DevOps Toolkit Installation        ║"
     print_message "$BLUE" "║     Production-Grade System Monitor    ║"
     print_message "$BLUE" "╚════════════════════════════════════════╝"
     echo ""
@@ -135,14 +148,48 @@ install_dependencies() {
         exit 1
     fi
 
+    # Check if pip is available
+    if ! python3 -m pip --version &> /dev/null; then
+        print_message "$YELLOW" "  pip not found, installing..."
+
+        if [[ "$OS" == "ubuntu" ]] || [[ "$OS" == "debian" ]]; then
+            apt-get update -qq
+            apt-get install -y python3-pip python3-venv
+        elif [[ "$OS" =~ ^(rhel|centos|fedora|rocky|almalinux)$ ]]; then
+            if command -v dnf &> /dev/null; then
+                dnf install -y python3-pip
+            else
+                yum install -y python3-pip
+            fi
+        else
+            print_message "$RED" "✗ Cannot install pip automatically"
+            print_message "$YELLOW" "  Please install python3-pip manually and run the installer again"
+            exit 1
+        fi
+
+        print_message "$GREEN" "✓ pip installed successfully"
+    fi
+
     # Try uv first, fall back to pip
     if command -v uv &> /dev/null; then
         print_message "$BLUE" "  Using uv for installation..."
-        uv pip install -e . --system
+        if ! uv pip install -e . --system; then
+            print_message "$YELLOW" "  uv installation failed, falling back to pip..."
+            python3 -m pip install --upgrade pip
+            python3 -m pip install -e .
+        fi
     else
         print_message "$BLUE" "  Using pip for installation..."
-        python3 -m pip install --upgrade pip
-        python3 -m pip install -e .
+        if ! python3 -m pip install --upgrade pip; then
+            print_message "$RED" "✗ Failed to upgrade pip"
+            exit 1
+        fi
+
+        if ! python3 -m pip install -e .; then
+            print_message "$RED" "✗ Failed to install dependencies"
+            print_message "$YELLOW" "  Try installing manually: python3 -m pip install -e ."
+            exit 1
+        fi
     fi
 
     print_message "$GREEN" "✓ Dependencies installed successfully"
@@ -153,25 +200,48 @@ install_files() {
     print_message "$YELLOW" "Installing DevOps Toolkit files..."
 
     # Create installation directory
-    mkdir -p "$INSTALL_DIR"
+    if ! mkdir -p "$INSTALL_DIR"; then
+        print_message "$RED" "✗ Failed to create installation directory: $INSTALL_DIR"
+        print_message "$YELLOW" "  Check permissions or try with sudo"
+        exit 1
+    fi
 
     # Copy application
     if [ -d "app" ]; then
-        cp -r app "$INSTALL_DIR/"
-        cp pyproject.toml "$INSTALL_DIR/" 2>/dev/null || true
+        if ! cp -r app "$INSTALL_DIR/"; then
+            print_message "$RED" "✗ Failed to copy app directory"
+            exit 1
+        fi
+
+        if [ -f "pyproject.toml" ]; then
+            cp pyproject.toml "$INSTALL_DIR/" 2>/dev/null || true
+        else
+            print_message "$YELLOW" "  Warning: pyproject.toml not found"
+        fi
+
         print_message "$GREEN" "✓ Files copied to $INSTALL_DIR"
     else
         print_message "$RED" "✗ app directory not found"
+        print_message "$YELLOW" "  Make sure you're running the installer from the project root"
         exit 1
     fi
 
     # Create symbolic link for CLI
-    cat > "$BIN_LINK" << 'EOF'
+    if ! cat > "$BIN_LINK" << 'EOF'
 #!/bin/bash
-cd /opt/devops_toolkit
-python3 -m app.devops_toolkit.cli "$@"
+cd /opt/devops_toolkit || exit 1
+exec python3 -m app.cli "$@"
 EOF
-    chmod +x "$BIN_LINK"
+    then
+        print_message "$RED" "✗ Failed to create CLI script"
+        exit 1
+    fi
+
+    if ! chmod +x "$BIN_LINK"; then
+        print_message "$RED" "✗ Failed to make CLI script executable"
+        exit 1
+    fi
+
     print_message "$GREEN" "✓ Created command: devops-toolkit"
 }
 
@@ -180,31 +250,48 @@ setup_config() {
     print_message "$YELLOW" "Setting up configuration..."
 
     # Create config directory
-    mkdir -p "$CONFIG_DIR"
+    if ! mkdir -p "$CONFIG_DIR"; then
+        print_message "$RED" "✗ Failed to create config directory: $CONFIG_DIR"
+        print_message "$YELLOW" "  Check permissions or try with sudo"
+        exit 1
+    fi
 
     # Copy example config if doesn't exist
     if [ ! -f "$CONFIG_FILE" ]; then
         if [ -f "config.yaml.example" ]; then
-            cp config.yaml.example "$CONFIG_FILE"
+            if ! cp config.yaml.example "$CONFIG_FILE"; then
+                print_message "$RED" "✗ Failed to copy configuration file"
+                exit 1
+            fi
             print_message "$GREEN" "✓ Configuration created at $CONFIG_FILE"
+        else
+            print_message "$YELLOW" "  Warning: config.yaml.example not found"
+            print_message "$YELLOW" "  You'll need to create $CONFIG_FILE manually"
         fi
     else
         print_message "$YELLOW" "  Configuration already exists at $CONFIG_FILE"
     fi
 
     # Interactive Slack configuration
-    echo ""
-    print_message "$BLUE" "═══ Slack Configuration ═══"
-    print_message "$YELLOW" "  Get your webhook from: https://api.slack.com/messaging/webhooks"
-    read -p "  Enter Slack webhook URL (or press Enter to skip): " WEBHOOK_URL
+    if [ -f "$CONFIG_FILE" ]; then
+        echo ""
+        print_message "$BLUE" "═══ Slack Configuration ═══"
+        print_message "$YELLOW" "  Get your webhook from: https://api.slack.com/messaging/webhooks"
+        read -p "  Enter Slack webhook URL (or press Enter to skip): " WEBHOOK_URL
 
-    if [ ! -z "$WEBHOOK_URL" ]; then
-        if [ -f "$CONFIG_FILE" ]; then
-            sed -i "s|webhook_url:.*|webhook_url: '$WEBHOOK_URL'|g" "$CONFIG_FILE"
+        if [ -n "$WEBHOOK_URL" ]; then
+            # Use different sed syntax for macOS vs Linux
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                sed -i '' "s|webhook_url:.*|webhook_url: '$WEBHOOK_URL'|g" "$CONFIG_FILE" 2>/dev/null || \
+                print_message "$YELLOW" "  Could not auto-configure webhook. Please edit $CONFIG_FILE manually"
+            else
+                sed -i "s|webhook_url:.*|webhook_url: '$WEBHOOK_URL'|g" "$CONFIG_FILE" 2>/dev/null || \
+                print_message "$YELLOW" "  Could not auto-configure webhook. Please edit $CONFIG_FILE manually"
+            fi
             print_message "$GREEN" "✓ Slack webhook configured"
+        else
+            print_message "$YELLOW" "  Skipped. Edit $CONFIG_FILE to add webhook later"
         fi
-    else
-        print_message "$YELLOW" "  Skipped. Edit $CONFIG_FILE to add webhook later"
     fi
 }
 
@@ -212,8 +299,22 @@ setup_config() {
 setup_logging() {
     print_message "$YELLOW" "Setting up logging..."
 
-    touch "$LOG_FILE"
-    chmod 644 "$LOG_FILE"
+    # Create log directory if it doesn't exist
+    LOG_DIR=$(dirname "$LOG_FILE")
+    if ! mkdir -p "$LOG_DIR"; then
+        print_message "$RED" "✗ Failed to create log directory: $LOG_DIR"
+        exit 1
+    fi
+
+    if ! touch "$LOG_FILE"; then
+        print_message "$RED" "✗ Failed to create log file: $LOG_FILE"
+        print_message "$YELLOW" "  Check permissions or try with sudo"
+        exit 1
+    fi
+
+    if ! chmod 644 "$LOG_FILE"; then
+        print_message "$YELLOW" "  Warning: Could not set log file permissions"
+    fi
 
     print_message "$GREEN" "✓ Log file: $LOG_FILE"
 }
