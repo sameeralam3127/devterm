@@ -18,18 +18,18 @@ monitoring:
       - /
       - /home
       - /var
-  
+
   # CPU Usage Monitoring
   cpu:
     enabled: true
     threshold_percent: 80
     check_interval: 5
-  
+
   # Memory Usage Monitoring
   memory:
     enabled: true
     threshold_percent: 80
-  
+
   # Port Availability Monitoring
   ports:
     enabled: true
@@ -39,7 +39,7 @@ monitoring:
       - 443   # HTTPS
       - 3306  # MySQL (if applicable)
       - 5432  # PostgreSQL (if applicable)
-  
+
   # Process Monitoring
   processes:
     enabled: true
@@ -57,7 +57,7 @@ maintenance:
     enabled: true
     auto_reboot: false
     reboot_time: '03:00'
-  
+
   # Service Management
   services:
     restart_retry_count: 3
@@ -77,11 +77,11 @@ audit:
       - /sys
       - /dev
       - /run
-  
+
   # User and Group Audit
   user_audit:
     enabled: true
-  
+
   # Cron Job Audit
   cron_audit:
     enabled: true

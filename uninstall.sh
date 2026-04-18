@@ -41,9 +41,9 @@ confirm_uninstall() {
     echo ""
     print_message "$RED" "WARNING: This will remove DevOps Toolkit from your system."
     echo ""
-    
+
     read -p "Are you sure you want to continue? (yes/no): " CONFIRM
-    
+
     if [[ "$CONFIRM" != "yes" ]]; then
         print_message "$GREEN" "Uninstallation cancelled."
         exit 0
@@ -53,7 +53,7 @@ confirm_uninstall() {
 # Remove cron jobs
 remove_cron() {
     print_message "$YELLOW" "Removing cron jobs..."
-    
+
     if crontab -l 2>/dev/null | grep -q "devops-toolkit"; then
         crontab -l 2>/dev/null | grep -v "devops-toolkit" | crontab -
         print_message "$GREEN" "Cron jobs removed"
@@ -65,7 +65,7 @@ remove_cron() {
 # Remove files
 remove_files() {
     print_message "$YELLOW" "Removing installation files..."
-    
+
     # Remove installation directory
     if [ -d "$INSTALL_DIR" ]; then
         rm -rf "$INSTALL_DIR"
@@ -73,7 +73,7 @@ remove_files() {
     else
         print_message "$YELLOW" "Installation directory not found"
     fi
-    
+
     # Remove binary link
     if [ -f "$BIN_LINK" ]; then
         rm -f "$BIN_LINK"
@@ -87,7 +87,7 @@ remove_files() {
 remove_config() {
     echo ""
     read -p "Do you want to remove configuration files? (y/n): " REMOVE_CONFIG
-    
+
     if [[ "$REMOVE_CONFIG" =~ ^[Yy]$ ]]; then
         if [ -d "$CONFIG_DIR" ]; then
             rm -rf "$CONFIG_DIR"
@@ -104,7 +104,7 @@ remove_config() {
 remove_logs() {
     echo ""
     read -p "Do you want to remove log files? (y/n): " REMOVE_LOGS
-    
+
     if [[ "$REMOVE_LOGS" =~ ^[Yy]$ ]]; then
         if [ -f "$LOG_FILE" ]; then
             rm -f "$LOG_FILE"
@@ -112,7 +112,7 @@ remove_logs() {
         else
             print_message "$YELLOW" "Log file not found"
         fi
-        
+
         # Remove rotated logs
         if ls /var/log/devops_toolkit.log.* 1> /dev/null 2>&1; then
             rm -f /var/log/devops_toolkit.log.*
@@ -127,7 +127,7 @@ remove_logs() {
 remove_dependencies() {
     echo ""
     read -p "Do you want to remove Python dependencies? (y/n): " REMOVE_DEPS
-    
+
     if [[ "$REMOVE_DEPS" =~ ^[Yy]$ ]]; then
         print_message "$YELLOW" "Removing Python dependencies..."
         python3 -m pip uninstall -y psutil requests PyYAML 2>/dev/null || true
@@ -141,17 +141,17 @@ remove_dependencies() {
 main() {
     check_root
     confirm_uninstall
-    
+
     echo ""
     print_message "$YELLOW" "Starting uninstallation..."
     echo ""
-    
+
     remove_cron
     remove_files
     remove_config
     remove_logs
     remove_dependencies
-    
+
     echo ""
     print_message "$GREEN" "======================================"
     print_message "$GREEN" "  Uninstallation Complete!"
