@@ -6,7 +6,6 @@ import socket
 from typing import Any, Dict, List, Tuple
 
 import psutil
-
 from devops_toolkit.core.logger import get_logger
 from devops_toolkit.core.notifier import SlackNotifier
 

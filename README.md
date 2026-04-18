@@ -2,8 +2,6 @@
 
 A production-grade Linux system health, monitoring, and maintenance toolkit for Ubuntu and RHEL-based systems.
 
-## 🎯 Overview
-
 DevOps Toolkit is a comprehensive Python-based automation tool designed for system administrators and DevOps engineers. It provides automated system monitoring, patch management, security auditing, and Slack notifications.
 
 ### Key Features
@@ -17,14 +15,14 @@ DevOps Toolkit is a comprehensive Python-based automation tool designed for syst
 - **Cron Integration**: Automated scheduled execution
 - **Test Mode**: Dry-run capabilities for safe testing
 
-## 📋 Requirements
+## Requirements
 
 - **Operating Systems**: Ubuntu 18.04+, Debian 10+, RHEL 7+, CentOS 7+, Rocky Linux, AlmaLinux
-- **Python**: 3.6 or higher
+- **Python**: 3.8 or higher
 - **Privileges**: Root/sudo access for system operations
 - **Dependencies**: psutil, requests, PyYAML (auto-installed)
 
-## 🚀 Quick Install
+## Quick Install
 
 **One-line installation:**
 
@@ -42,20 +40,20 @@ sudo bash install.sh
 
 The installer will:
 
-- ✅ Check Python 3.8+ installation
-- ✅ Install dependencies (with optional uv support)
-- ✅ Copy files to `/opt/devops_toolkit`
-- ✅ Create configuration at `/etc/devops_toolkit/config.yaml`
-- ✅ Setup logging at `/var/log/devops_toolkit.log`
-- ✅ Optionally configure cron jobs
-- ✅ Create `devops-toolkit` command
+- Check Python 3.8+ installation
+- Install dependencies (with optional uv support)
+- Copy files to `/opt/devops_toolkit`
+- Create configuration at `/etc/devops_toolkit/config.yaml`
+- Setup logging at `/var/log/devops_toolkit.log`
+- Optionally configure cron jobs
+- Create `devops-toolkit` command
 
 ### Configuration
 
 Edit the configuration file:
 
 ```bash
-sudo nano /etc/devops_toolkit/config.yaml
+sudo vim /etc/devops_toolkit/config.yaml
 ```
 
 **Required Configuration:**
@@ -64,7 +62,7 @@ sudo nano /etc/devops_toolkit/config.yaml
 - Adjust monitoring thresholds
 - Configure processes and ports to monitor
 
-## 📖 Usage
+## Usage
 
 ### Command-Line Interface
 
@@ -90,7 +88,7 @@ devops-toolkit setup
 devops-toolkit --help
 ```
 
-## 🔧 Configuration Reference
+## Configuration Reference
 
 ### Complete Configuration Example
 
@@ -158,7 +156,7 @@ logging:
   backup_count: 5
 ```
 
-## 📊 Module Details
+## Module Details
 
 ### 1. Patch Management
 
@@ -254,7 +252,7 @@ yum update -y  # or dnf update -y
 - Lists user crontabs
 - Detects malformed entries
 
-## 🔔 Slack Notifications
+## Slack Notifications
 
 ### Severity Levels
 
@@ -281,7 +279,7 @@ Each notification includes:
 4. Copy the webhook URL
 5. Add to configuration file
 
-## 📅 Cron Setup
+## Cron Setup
 
 ### Automated Scheduling
 
@@ -305,45 +303,7 @@ The installer can configure cron jobs automatically. Manual setup:
 0 * * * * /usr/local/bin/devops-toolkit monitor >> /var/log/devops_toolkit.log 2>&1
 ```
 
-## 📁 Project Structure
-
-```
-devops-toolkit/
-├── app/
-│   └── devops_toolkit/           # Main application package
-│       ├── __init__.py
-│       ├── cli.py                # Command-line interface
-│       ├── config_loader.py      # Configuration management
-│       ├── core/
-│       │   ├── logger.py         # Logging system
-│       │   └── notifier.py       # Slack notifications
-│       ├── monitors/
-│       │   ├── disk_monitor.py   # Disk usage monitoring
-│       │   ├── system_monitor.py # CPU/Memory/Uptime
-│       │   └── network_monitor.py # Ports/Processes
-│       ├── maintenance/
-│       │   ├── patch_manager.py  # OS patch management
-│       │   └── service_manager.py # Service management
-│       ├── audit/
-│       │   └── system_audit.py   # System auditing
-│       └── utils/
-│           └── system.py         # OS detection, command execution
-├── tests/                        # Pytest test suite
-│   ├── conftest.py              # Test fixtures
-│   ├── test_config_loader.py   # Config tests
-│   ├── test_notifier.py         # Notifier tests
-│   └── test_system.py           # System utils tests
-├── pyproject.toml               # Modern Python project config
-├── Makefile                     # Development commands
-├── .pre-commit-config.yaml      # Pre-commit hooks
-├── requirements.txt             # Python dependencies
-├── config.yaml.example          # Example configuration
-├── install.sh                   # Installation script
-├── uninstall.sh                 # Uninstallation script
-└── README.md                    # This file
-```
-
-## 🛠️ Development
+## Development
 
 ### Setup Development Environment
 
@@ -420,7 +380,7 @@ pylint app
 bandit -r app
 ```
 
-## 🛠️ Advanced Usage
+## Advanced Usage
 
 ### Custom Configuration Path
 
@@ -454,8 +414,8 @@ devops-toolkit --dry-run patch
 ### Service Management (Python API)
 
 ```python
-from devops_toolkit.maintenance.service_manager import ServiceManager
-from devops_toolkit.core.notifier import SlackNotifier
+from app.maintenance.service_manager import ServiceManager
+from app.core.notifier import SlackNotifier
 
 notifier = SlackNotifier(webhook_url='...')
 service_mgr = ServiceManager(notifier)
@@ -467,7 +427,7 @@ success, message = service_mgr.restart_service('nginx')
 is_active, status = service_mgr.get_service_status('nginx')
 ```
 
-## 📝 Logging
+## Logging
 
 ### Log Location
 
@@ -498,7 +458,7 @@ grep ERROR /var/log/devops_toolkit.log
 grep "patch_manager" /var/log/devops_toolkit.log
 ```
 
-## 🔒 Security Considerations
+## Security Considerations
 
 1. **Root Access**: Required for system operations
 2. **Slack Webhook**: Keep webhook URL secure
@@ -513,7 +473,7 @@ sudo chmod 600 /etc/devops_toolkit/config.yaml
 sudo chown root:root /etc/devops_toolkit/config.yaml
 ```
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -547,7 +507,7 @@ grep devops-toolkit /var/log/syslog
 crontab -l | grep devops-toolkit
 ```
 
-## 🔄 Uninstallation
+## Uninstallation
 
 ```bash
 sudo bash uninstall.sh
@@ -561,11 +521,11 @@ The uninstaller will:
 - Optionally remove logs
 - Optionally remove Python dependencies
 
-## 📄 License
+## License
 
 See LICENSE file for details.
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please ensure:
 
@@ -574,7 +534,7 @@ Contributions are welcome! Please ensure:
 - Documentation is updated
 - Tests pass successfully
 
-## 📞 Support
+## Support
 
 For issues, questions, or contributions:
 
@@ -582,7 +542,7 @@ For issues, questions, or contributions:
 - Run test mode: `devops-toolkit test`
 - Review configuration: `/etc/devops_toolkit/config.yaml`
 
-## 🎓 Best Practices
+## Best Practices
 
 1. **Start with Test Mode**: Always test before production use
 2. **Configure Thresholds**: Adjust based on your environment
@@ -592,7 +552,7 @@ For issues, questions, or contributions:
 6. **Backup Configuration**: Keep config backups
 7. **Update Regularly**: Keep toolkit and dependencies updated
 
-## 📊 Example Workflows
+## Example Workflows
 
 ### Daily Monitoring
 
