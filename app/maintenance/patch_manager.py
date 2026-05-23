@@ -6,9 +6,9 @@ Handles OS updates, reboot detection, and notifications
 import os
 from typing import Any, Dict, Tuple
 
-from devops_toolkit.core.logger import get_logger
-from devops_toolkit.core.notifier import Severity, SlackNotifier
-from devops_toolkit.utils.system import CommandExecutor, OSType, SystemInfo
+from app.core.logger import get_logger
+from app.core.notifier import Severity, SlackNotifier
+from app.utils.system import CommandExecutor, OSType, SystemInfo
 
 
 class PatchManager:

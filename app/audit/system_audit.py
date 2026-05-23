@@ -9,9 +9,10 @@ import pwd
 from typing import Any, Dict, List, Tuple
 
 import psutil
-from devops_toolkit.core.logger import get_logger
-from devops_toolkit.core.notifier import SlackNotifier
-from devops_toolkit.utils.system import CommandExecutor, SystemInfo
+
+from app.core.logger import get_logger
+from app.core.notifier import SlackNotifier
+from app.utils.system import CommandExecutor, SystemInfo
 
 
 class SystemAuditor:

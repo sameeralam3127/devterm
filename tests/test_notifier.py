@@ -4,7 +4,7 @@ Tests for Slack notifier module
 
 from unittest.mock import Mock, patch
 
-from app.devops_toolkit.core.notifier import Severity, SlackNotifier
+from app.core.notifier import Severity, SlackNotifier
 
 
 class TestSlackNotifier:

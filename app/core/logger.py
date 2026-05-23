@@ -4,6 +4,7 @@ Logging system with rotation support
 
 import logging
 import os
+import sys
 from logging.handlers import RotatingFileHandler
 
 
@@ -31,6 +32,7 @@ class Logger:
         log_level: str = "INFO",
         max_bytes: int = 10485760,
         backup_count: int = 5,
+        console_enabled: bool = True,
     ):
         """
         Setup logging configuration
@@ -40,6 +42,7 @@ class Logger:
             log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
             max_bytes: Maximum log file size before rotation
             backup_count: Number of backup files to keep
+            console_enabled: Whether to mirror logs to stderr
         """
         # Create logger
         self.logger = logging.getLogger("devops_toolkit")
@@ -56,8 +59,11 @@ class Logger:
             except PermissionError:
                 # Fallback to local directory if no permission
                 log_file = "./devops_toolkit.log"
-                print(f"Warning: No permission to create {log_dir}")
-                print(f"Using fallback log file: {log_file}")
+                if console_enabled:
+                    print(
+                        f"Warning: No permission to create {log_dir}", file=sys.stderr
+                    )
+                    print(f"Using fallback log file: {log_file}", file=sys.stderr)
 
         # Create formatter
         formatter = logging.Formatter(
@@ -75,14 +81,16 @@ class Logger:
             file_handler.setFormatter(formatter)
             self.logger.addHandler(file_handler)
         except PermissionError:
-            print(f"Warning: No permission to write to {log_file}")
-            print("File logging disabled")
+            if console_enabled:
+                print(f"Warning: No permission to write to {log_file}", file=sys.stderr)
+                print("File logging disabled", file=sys.stderr)
 
         # Console handler
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
-        console_handler.setFormatter(formatter)
-        self.logger.addHandler(console_handler)
+        if console_enabled:
+            console_handler = logging.StreamHandler()
+            console_handler.setLevel(logging.INFO)
+            console_handler.setFormatter(formatter)
+            self.logger.addHandler(console_handler)
 
         self.logger.info("Logger initialized successfully")
 

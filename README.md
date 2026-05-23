@@ -10,6 +10,7 @@ DevOps Toolkit is a comprehensive Python-based automation tool designed for syst
 - **System Monitoring**: CPU, memory, disk usage, and uptime tracking with configurable thresholds
 - **Network Monitoring**: Port availability and process monitoring
 - **Security Auditing**: File permissions, user/group audits, and cron job validation
+- **DevOps Doctor**: One-command readiness score with CI-friendly JSON output and remediation guidance
 - **Slack Integration**: Real-time notifications with severity levels (INFO, WARNING, CRITICAL)
 - **Modular Architecture**: Run individual modules or full system checks
 - **Cron Integration**: Automated scheduled execution
@@ -74,9 +75,13 @@ devops-toolkit run
 devops-toolkit patch      # Patch management only
 devops-toolkit monitor    # Monitoring only
 devops-toolkit audit      # Auditing only
+devops-toolkit doctor     # Readiness score and actionable diagnostics
 
 # Test mode (dry-run, no changes)
 devops-toolkit test
+
+# CI-friendly doctor output
+devops-toolkit doctor --format json --fail-on-warning
 
 # Dry-run mode
 devops-toolkit --dry-run patch
@@ -237,6 +242,18 @@ yum update -y  # or dnf update -y
 - Lists all system users with UIDs
 - Lists all groups and members
 - Parses `/etc/passwd` and `/etc/group`
+
+### 5. DevOps Doctor
+
+Run a non-mutating production readiness check before installing, scheduling, or opening a pull request:
+
+```bash
+devops-toolkit doctor
+devops-toolkit doctor --format json
+devops-toolkit doctor --format json --fail-on-warning
+```
+
+Doctor validates Python runtime support, configuration health, OS and package manager readiness, disk monitoring paths, logging permissions, Slack alerting, and patch management settings. The JSON mode is designed for GitHub Actions and other CI systems.
 
 **File Permissions Audit:**
 

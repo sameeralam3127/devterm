@@ -6,7 +6,7 @@ import socket
 import time
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 import requests
 
@@ -154,7 +154,7 @@ class SlackNotifier:
 
         return payload
 
-    def test_connection(self) -> tuple[bool, str]:
+    def test_connection(self) -> Tuple[bool, str]:
         """
         Test Slack webhook connection
 
