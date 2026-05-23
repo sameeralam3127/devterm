@@ -672,6 +672,7 @@ print_completion() {
     print_message "$YELLOW" "  devops-toolkit patch     - Patch management"
     print_message "$YELLOW" "  devops-toolkit monitor   - System monitoring"
     print_message "$YELLOW" "  devops-toolkit audit     - Security audits"
+    print_message "$YELLOW" "  devops-toolkit doctor    - Readiness diagnostics"
     print_message "$YELLOW" "  devops-toolkit test      - Test mode"
     print_message "$YELLOW" "  devops-toolkit --help    - Show help"
     echo ""

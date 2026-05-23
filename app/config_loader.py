@@ -4,7 +4,7 @@ Handles YAML configuration loading, validation, and default values
 """
 
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
 
@@ -135,7 +135,7 @@ class ConfigLoader:
 
         return value
 
-    def validate(self) -> tuple[bool, list[str]]:
+    def validate(self) -> Tuple[bool, List[str]]:
         """
         Validate configuration
 

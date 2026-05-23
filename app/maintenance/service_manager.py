@@ -5,9 +5,9 @@ Service management utilities with retry logic
 import time
 from typing import Any, Dict, Tuple
 
-from devops_toolkit.core.logger import get_logger
-from devops_toolkit.core.notifier import SlackNotifier
-from devops_toolkit.utils.system import CommandExecutor
+from app.core.logger import get_logger
+from app.core.notifier import SlackNotifier
+from app.utils.system import CommandExecutor
 
 
 class ServiceManager:

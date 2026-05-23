@@ -86,17 +86,17 @@ clean:
 # Run the toolkit
 run:
 	@echo "Running DevOps Toolkit..."
-	python -m app.devops_toolkit.cli run
+	python3 -m app.cli run
 
 # Run in test mode
 test-run:
 	@echo "Running DevOps Toolkit in test mode..."
-	python -m app.devops_toolkit.cli test
+	python3 -m app.cli test
 
 # Build package
 build:
 	@echo "Building package..."
-	python -m build
+	python3 -m build
 
 # Type checking
 typecheck:

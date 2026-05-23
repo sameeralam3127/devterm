@@ -5,8 +5,9 @@ Disk usage monitoring module
 from typing import Any, Dict, List, Tuple
 
 import psutil
-from devops_toolkit.core.logger import get_logger
-from devops_toolkit.core.notifier import SlackNotifier
+
+from app.core.logger import get_logger
+from app.core.notifier import SlackNotifier
 
 
 class DiskMonitor:

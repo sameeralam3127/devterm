@@ -5,20 +5,23 @@ Command-line interface for DevOps Toolkit
 import argparse
 import sys
 
-from devops_toolkit.audit.system_audit import SystemAuditor
-from devops_toolkit.config_loader import ConfigLoader
-from devops_toolkit.core.logger import get_logger
-from devops_toolkit.core.notifier import SlackNotifier
-from devops_toolkit.maintenance.patch_manager import PatchManager
-from devops_toolkit.monitors.disk_monitor import DiskMonitor
-from devops_toolkit.monitors.network_monitor import NetworkMonitor
-from devops_toolkit.monitors.system_monitor import SystemMonitor
+from app.audit.system_audit import SystemAuditor
+from app.config_loader import ConfigLoader
+from app.core.logger import get_logger
+from app.core.notifier import SlackNotifier
+from app.doctor import DevOpsDoctor
+from app.maintenance.patch_manager import PatchManager
+from app.monitors.disk_monitor import DiskMonitor
+from app.monitors.network_monitor import NetworkMonitor
+from app.monitors.system_monitor import SystemMonitor
 
 
 class DevOpsToolkit:
     """Main DevOps Toolkit application"""
 
-    def __init__(self, config_path=None, dry_run=False, test_mode=False):
+    def __init__(
+        self, config_path=None, dry_run=False, test_mode=False, console_logs=True
+    ):
         """
         Initialize DevOps Toolkit
 
@@ -26,6 +29,7 @@ class DevOpsToolkit:
             config_path: Path to configuration file
             dry_run: If True, don't make changes
             test_mode: If True, run in test mode
+            console_logs: If True, mirror logs to stderr
         """
         self.config = ConfigLoader(config_path)
         self.dry_run = dry_run
@@ -38,6 +42,7 @@ class DevOpsToolkit:
             log_level=self.config.get("logging.log_level"),
             max_bytes=self.config.get("logging.max_bytes"),
             backup_count=self.config.get("logging.backup_count"),
+            console_enabled=console_logs,
         )
         self.logger = logger_instance.get_logger()
 
@@ -213,6 +218,24 @@ class DevOpsToolkit:
 
         return is_valid and success
 
+    def run_doctor(self, output_format="text", fail_on_warning=False):
+        """Run non-mutating readiness diagnostics"""
+        self.logger.info("Running DevOps Toolkit doctor")
+
+        doctor = DevOpsDoctor(self.config)
+        report = doctor.run()
+
+        if output_format == "json":
+            print(doctor.render_json(report))
+        else:
+            print(doctor.render_text(report))
+
+        if report["status"] == "fail":
+            return False
+        if fail_on_warning and report["status"] == "warn":
+            return False
+        return True
+
     def setup(self):
         """Initial setup"""
         print("\n=== DevOps Toolkit Setup ===\n")
@@ -247,6 +270,7 @@ Examples:
   %(prog)s patch            Run only patch management
   %(prog)s monitor          Run only monitoring
   %(prog)s audit            Run only audits
+  %(prog)s doctor           Run readiness diagnostics
   %(prog)s test             Run in test mode
   %(prog)s setup            Initial setup
         """,
@@ -254,7 +278,7 @@ Examples:
 
     parser.add_argument(
         "command",
-        choices=["run", "patch", "monitor", "audit", "test", "setup"],
+        choices=["run", "patch", "monitor", "audit", "doctor", "test", "setup"],
         default="run",
         nargs="?",
         help="Command to execute (default: run)",
@@ -267,6 +291,19 @@ Examples:
     )
 
     parser.add_argument("--test", action="store_true", help="Run in test mode")
+
+    parser.add_argument(
+        "--format",
+        choices=["text", "json"],
+        default="text",
+        help="Output format for doctor command",
+    )
+
+    parser.add_argument(
+        "--fail-on-warning",
+        action="store_true",
+        help="Return a non-zero exit code when doctor finds warnings",
+    )
 
     args = parser.parse_args()
 
@@ -281,6 +318,7 @@ Examples:
         config_path=args.config,
         dry_run=args.dry_run,
         test_mode=args.test or args.command == "test",
+        console_logs=not (args.command == "doctor" and args.format == "json"),
     )
 
     # Execute command
@@ -296,6 +334,9 @@ Examples:
             toolkit.run_monitor()
         elif args.command == "audit":
             toolkit.run_audit()
+        elif args.command == "doctor":
+            success = toolkit.run_doctor(args.format, args.fail_on_warning)
+            sys.exit(0 if success else 1)
 
         sys.exit(0)
 

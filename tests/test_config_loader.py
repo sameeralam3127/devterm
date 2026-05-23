@@ -7,7 +7,7 @@ import tempfile
 
 import yaml
 
-from app.devops_toolkit.config_loader import ConfigLoader
+from app.config_loader import ConfigLoader
 
 
 class TestConfigLoader:

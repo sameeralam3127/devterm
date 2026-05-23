@@ -4,7 +4,7 @@ Tests for system utilities module
 
 from unittest.mock import MagicMock, patch
 
-from app.devops_toolkit.utils.system import CommandExecutor, OSType, SystemInfo
+from app.utils.system import CommandExecutor, OSType, SystemInfo
 
 
 class TestSystemInfo:
@@ -41,7 +41,7 @@ class TestSystemInfo:
         os_type = SystemInfo.detect_os()
         assert os_type == OSType.UNKNOWN
 
-    @patch("app.devops_toolkit.utils.system.SystemInfo.detect_os")
+    @patch("app.utils.system.SystemInfo.detect_os")
     def test_is_debian_based(self, mock_detect):
         """Test Debian-based OS check"""
         mock_detect.return_value = OSType.UBUNTU
@@ -50,7 +50,7 @@ class TestSystemInfo:
         mock_detect.return_value = OSType.RHEL
         assert SystemInfo.is_debian_based() is False
 
-    @patch("app.devops_toolkit.utils.system.SystemInfo.detect_os")
+    @patch("app.utils.system.SystemInfo.detect_os")
     def test_is_rhel_based(self, mock_detect):
         """Test RHEL-based OS check"""
         mock_detect.return_value = OSType.RHEL
@@ -60,8 +60,8 @@ class TestSystemInfo:
         assert SystemInfo.is_rhel_based() is False
 
     @patch("os.path.exists")
-    @patch("app.devops_toolkit.utils.system.SystemInfo.is_debian_based")
-    @patch("app.devops_toolkit.utils.system.SystemInfo.is_rhel_based")
+    @patch("app.utils.system.SystemInfo.is_debian_based")
+    @patch("app.utils.system.SystemInfo.is_rhel_based")
     def test_get_package_manager_apt(self, mock_rhel, mock_debian, mock_exists):
         """Test getting apt package manager"""
         mock_debian.return_value = True
@@ -71,8 +71,8 @@ class TestSystemInfo:
         assert pm == "apt"
 
     @patch("os.path.exists")
-    @patch("app.devops_toolkit.utils.system.SystemInfo.is_debian_based")
-    @patch("app.devops_toolkit.utils.system.SystemInfo.is_rhel_based")
+    @patch("app.utils.system.SystemInfo.is_debian_based")
+    @patch("app.utils.system.SystemInfo.is_rhel_based")
     def test_get_package_manager_dnf(self, mock_rhel, mock_debian, mock_exists):
         """Test getting dnf package manager"""
         mock_debian.return_value = False
@@ -84,8 +84,8 @@ class TestSystemInfo:
 
     @patch("platform.node")
     @patch("platform.machine")
-    @patch("app.devops_toolkit.utils.system.SystemInfo.detect_os")
-    @patch("app.devops_toolkit.utils.system.SystemInfo.get_package_manager")
+    @patch("app.utils.system.SystemInfo.detect_os")
+    @patch("app.utils.system.SystemInfo.get_package_manager")
     def test_get_os_info(self, mock_pm, mock_detect, mock_machine, mock_node):
         """Test getting OS information"""
         mock_node.return_value = "testhost"
