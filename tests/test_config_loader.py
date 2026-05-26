@@ -71,6 +71,20 @@ class TestConfigLoader:
         finally:
             os.unlink(temp_path)
 
+    def test_validate_rejects_non_numeric_threshold(self):
+        """Test validation with threshold values that cannot be compared safely"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            yaml.dump({"monitoring": {"cpu": {"threshold_percent": "high"}}}, f)
+            temp_path = f.name
+
+        try:
+            config = ConfigLoader(temp_path)
+            is_valid, errors = config.validate()
+            assert is_valid is False
+            assert any("cpu threshold" in err.lower() for err in errors)
+        finally:
+            os.unlink(temp_path)
+
     def test_get_all(self, temp_config_file):
         """Test getting all configuration"""
         config = ConfigLoader(temp_config_file)
@@ -78,6 +92,15 @@ class TestConfigLoader:
         assert isinstance(all_config, dict)
         assert "slack" in all_config
         assert "monitoring" in all_config
+
+    def test_get_all_returns_deep_copy(self, temp_config_file):
+        """Test callers cannot mutate the live config through get_all"""
+        config = ConfigLoader(temp_config_file)
+        all_config = config.get_all()
+
+        all_config["slack"]["enabled"] = False
+
+        assert config.get("slack.enabled") is True
 
     def test_create_default_config(self):
         """Test creating default configuration file"""
@@ -103,6 +126,16 @@ class TestConfigLoader:
         assert merged["b"]["c"] == 2
         assert merged["b"]["d"] == 3
         assert merged["e"] == 4
+
+    def test_merge_configs_does_not_mutate_defaults(self):
+        """Test nested default config is not shared after merging"""
+        config = ConfigLoader()
+        default = {"a": {"b": []}}
+        merged = config._merge_configs(default, {"a": {"c": 1}})
+
+        merged["a"]["b"].append("changed")
+
+        assert default["a"]["b"] == []
 
 
 # Made with Bob

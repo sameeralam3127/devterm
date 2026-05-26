@@ -29,6 +29,19 @@ class ServiceManager:
         self.retry_delay = retry_delay
         self.logger = get_logger().get_logger()
 
+    @staticmethod
+    def _systemctl(
+        action: str, service_name: str, timeout: int
+    ) -> Tuple[bool, str, str]:
+        """Run systemctl without shell interpolation."""
+        if not service_name or service_name.startswith("-"):
+            return False, "", "Invalid service name"
+
+        success, stdout, stderr, _ = CommandExecutor.run(
+            ["systemctl", action, service_name], timeout=timeout, check=False
+        )
+        return success, stdout, stderr
+
     def get_service_status(self, service_name: str) -> Tuple[bool, str]:
         """
         Get service status
@@ -41,9 +54,7 @@ class ServiceManager:
         """
         self.logger.info(f"Checking status of service: {service_name}")
 
-        success, stdout, stderr = CommandExecutor.run_shell(
-            f"systemctl is-active {service_name}", timeout=10
-        )
+        success, stdout, stderr = self._systemctl("is-active", service_name, timeout=10)
 
         status = stdout.strip() if stdout else "unknown"
         is_active = status == "active"
@@ -69,8 +80,8 @@ class ServiceManager:
             )
 
             # Attempt restart
-            success, stdout, stderr = CommandExecutor.run_shell(
-                f"systemctl restart {service_name}", timeout=60
+            success, stdout, stderr = self._systemctl(
+                "restart", service_name, timeout=60
             )
 
             if not success:
@@ -127,9 +138,7 @@ class ServiceManager:
         """
         self.logger.info(f"Starting service: {service_name}")
 
-        success, stdout, stderr = CommandExecutor.run_shell(
-            f"systemctl start {service_name}", timeout=60
-        )
+        success, stdout, stderr = self._systemctl("start", service_name, timeout=60)
 
         if success:
             time.sleep(2)
@@ -160,9 +169,7 @@ class ServiceManager:
         """
         self.logger.info(f"Stopping service: {service_name}")
 
-        success, stdout, stderr = CommandExecutor.run_shell(
-            f"systemctl stop {service_name}", timeout=60
-        )
+        success, stdout, stderr = self._systemctl("stop", service_name, timeout=60)
 
         if success:
             msg = f"Service {service_name} stopped successfully"
@@ -185,9 +192,7 @@ class ServiceManager:
         """
         self.logger.info(f"Enabling service: {service_name}")
 
-        success, stdout, stderr = CommandExecutor.run_shell(
-            f"systemctl enable {service_name}", timeout=30
-        )
+        success, stdout, stderr = self._systemctl("enable", service_name, timeout=30)
 
         if success:
             msg = f"Service {service_name} enabled successfully"
@@ -218,9 +223,7 @@ class ServiceManager:
         info["status"] = status
 
         # Get enabled status
-        success, stdout, _ = CommandExecutor.run_shell(
-            f"systemctl is-enabled {service_name}", timeout=10
-        )
+        success, stdout, _ = self._systemctl("is-enabled", service_name, timeout=10)
         info["is_enabled"] = stdout.strip() == "enabled" if success else False
 
         return info

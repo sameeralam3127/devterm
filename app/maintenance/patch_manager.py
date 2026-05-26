@@ -57,20 +57,24 @@ class PatchManager:
     def _check_updates_debian(self) -> Tuple[bool, int, str]:
         """Check updates for Debian-based systems"""
         # Update package lists
-        success, stdout, stderr = CommandExecutor.run_shell(
-            "apt-get update", timeout=300
+        success, stdout, stderr, _ = CommandExecutor.run(
+            ["apt-get", "update"], timeout=300, check=False
         )
 
         if not success:
             return False, 0, f"Failed to update package lists: {stderr}"
 
         # Check for upgradable packages
-        success, stdout, stderr = CommandExecutor.run_shell(
-            "apt list --upgradable 2>/dev/null | grep -c upgradable", timeout=60
+        success, stdout, stderr, _ = CommandExecutor.run(
+            ["apt", "list", "--upgradable"], timeout=60, check=False
         )
 
-        if success and stdout.strip().isdigit():
-            count = int(stdout.strip())
+        if success:
+            count = sum(
+                1
+                for line in stdout.splitlines()
+                if "upgradable" in line and not line.startswith("Listing")
+            )
             return True, count, f"{count} updates available"
 
         return True, 0, "No updates available"
@@ -80,17 +84,21 @@ class PatchManager:
         pm = self.package_manager or "yum"
 
         # Check for available updates
-        success, stdout, stderr = CommandExecutor.run_shell(
-            f'{pm} check-update | grep -v "^$" | wc -l', timeout=300
+        success, stdout, stderr, return_code = CommandExecutor.run(
+            [pm, "check-update"], timeout=300, check=False
         )
 
-        if success and stdout.strip().isdigit():
-            count = int(stdout.strip())
-            # Subtract header lines
-            count = max(0, count - 2)
+        # yum/dnf check-update returns 100 when updates are available.
+        if success or return_code == 100:
+            count = sum(
+                1
+                for line in stdout.splitlines()
+                if line.strip()
+                and not line.lower().startswith(("last metadata", "loaded plugins"))
+            )
             return True, count, f"{count} updates available"
 
-        return True, 0, "No updates available"
+        return False, 0, f"Failed to check updates: {stderr}"
 
     def apply_updates(self) -> Tuple[bool, str, Dict[str, Any]]:
         """
@@ -160,9 +168,10 @@ class PatchManager:
         self.logger.info("Applying updates for Debian-based system")
 
         # Run apt upgrade
-        success, stdout, stderr = CommandExecutor.run_shell(
-            "DEBIAN_FRONTEND=noninteractive apt-get upgrade -y",
-            timeout=1800,  # 30 minutes
+        success, stdout, stderr, _ = CommandExecutor.run(
+            ["env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "upgrade", "-y"],
+            timeout=1800,
+            check=False,
         )
 
         details = {"os_type": "debian", "package_manager": "apt"}
@@ -183,8 +192,10 @@ class PatchManager:
         self.logger.info(f"Applying updates for RHEL-based system using {pm}")
 
         # Run update
-        success, stdout, stderr = CommandExecutor.run_shell(
-            f"{pm} update -y", timeout=1800  # 30 minutes
+        success, stdout, stderr, _ = CommandExecutor.run(
+            [pm, "update", "-y"],
+            timeout=1800,
+            check=False,
         )
 
         details = {"os_type": "rhel", "package_manager": pm}
