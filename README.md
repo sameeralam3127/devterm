@@ -11,6 +11,7 @@ DevOps Toolkit is a comprehensive Python-based automation tool designed for syst
 - **Network Monitoring**: Port availability and process monitoring
 - **Security Auditing**: File permissions, user/group audits, and cron job validation
 - **DevOps Doctor**: One-command readiness score with CI-friendly JSON output and remediation guidance
+- **Health Reports**: Combined doctor, monitoring, and inventory reports in text or JSON
 - **Slack Integration**: Real-time notifications with severity levels (INFO, WARNING, CRITICAL)
 - **Modular Architecture**: Run individual modules or full system checks
 - **Cron Integration**: Automated scheduled execution
@@ -76,12 +77,19 @@ devops-toolkit patch      # Patch management only
 devops-toolkit monitor    # Monitoring only
 devops-toolkit audit      # Auditing only
 devops-toolkit doctor     # Readiness score and actionable diagnostics
+devops-toolkit report     # Combined health report
 
 # Test mode (dry-run, no changes)
 devops-toolkit test
 
 # CI-friendly doctor output
 devops-toolkit doctor --format json --fail-on-warning
+
+# Automation-friendly health report
+devops-toolkit report --format json
+
+# Include deeper audit scans in the report
+devops-toolkit report --full-audit
 
 # Dry-run mode
 devops-toolkit --dry-run patch
