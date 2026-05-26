@@ -6,6 +6,7 @@ import grp
 import os
 import platform
 import pwd
+import shlex
 from typing import Any, Dict, List, Tuple
 
 import psutil
@@ -27,6 +28,21 @@ class SystemAuditor:
         """
         self.notifier = notifier
         self.logger = get_logger().get_logger()
+
+    @staticmethod
+    def _is_excluded(path: str, exclude_paths: List[str]) -> bool:
+        """Return True when path is inside one of the excluded paths."""
+        normalized_path = os.path.abspath(path)
+        for exclude_path in exclude_paths:
+            normalized_exclude = os.path.abspath(exclude_path)
+            try:
+                if os.path.commonpath([normalized_path, normalized_exclude]) == (
+                    normalized_exclude
+                ):
+                    return True
+            except ValueError:
+                continue
+        return False
 
     def collect_inventory(self) -> Dict[str, Any]:
         """
@@ -172,8 +188,16 @@ class SystemAuditor:
             try:
                 for root, dirs, files in os.walk(scan_path):
                     # Skip excluded paths
-                    if any(root.startswith(ex) for ex in exclude_paths):
+                    if self._is_excluded(root, exclude_paths):
+                        dirs[:] = []
                         continue
+                    dirs[:] = [
+                        dirname
+                        for dirname in dirs
+                        if not self._is_excluded(
+                            os.path.join(root, dirname), exclude_paths
+                        )
+                    ]
 
                     # Check directories
                     for dirname in dirs:
@@ -294,7 +318,8 @@ class SystemAuditor:
             for username in stdout.strip().split("\n"):
                 if username:
                     success, cron_content, _ = CommandExecutor.run_shell(
-                        f"crontab -u {username} -l 2>/dev/null", timeout=10
+                        f"crontab -u {shlex.quote(username)} -l 2>/dev/null",
+                        timeout=10,
                     )
                     if success:
                         audit["user_crontabs"][username] = cron_content

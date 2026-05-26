@@ -3,6 +3,7 @@ Configuration loader for DevOps Toolkit
 Handles YAML configuration loading, validation, and default values
 """
 
+import copy
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -70,7 +71,7 @@ class ConfigLoader:
         Returns:
             Configuration dictionary
         """
-        config = self.DEFAULT_CONFIG.copy()
+        config = copy.deepcopy(self.DEFAULT_CONFIG)
 
         if os.path.exists(self.config_path):
             try:
@@ -99,7 +100,7 @@ class ConfigLoader:
         Returns:
             Merged configuration
         """
-        merged = default.copy()
+        merged = copy.deepcopy(default)
 
         for key, value in user.items():
             if (
@@ -155,7 +156,13 @@ class ConfigLoader:
         # Validate thresholds
         for monitor_type in ["disk", "cpu", "memory"]:
             threshold = self.get(f"monitoring.{monitor_type}.threshold_percent")
-            if threshold and (threshold < 0 or threshold > 100):
+            if threshold is None:
+                continue
+            if (
+                not isinstance(threshold, (int, float))
+                or threshold < 0
+                or threshold > 100
+            ):
                 errors.append(
                     f"Invalid {monitor_type} threshold: must be between 0 and 100"
                 )
@@ -176,7 +183,7 @@ class ConfigLoader:
         Returns:
             Complete configuration dictionary
         """
-        return self.config.copy()
+        return copy.deepcopy(self.config)
 
     @staticmethod
     def create_default_config(output_path: str) -> bool:

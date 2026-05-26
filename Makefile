@@ -1,5 +1,7 @@
 .PHONY: help install install-dev test lint format clean check pre-commit run
 
+ANSIBLE_LOCAL_TEMP ?= /tmp
+
 # Default target
 help:
 	@echo "DevOps Toolkit - Available Commands:"
@@ -30,12 +32,12 @@ install-dev:
 # Run tests with coverage
 test:
 	@echo "Running tests with coverage..."
-	pytest -v --cov=app --cov-report=term-missing --cov-report=html
+	ANSIBLE_LOCAL_TEMP=$(ANSIBLE_LOCAL_TEMP) pytest -v --cov=app --cov-report=term-missing --cov-report=html
 
 # Run quick tests
 test-quick:
 	@echo "Running quick tests..."
-	pytest -v -x
+	ANSIBLE_LOCAL_TEMP=$(ANSIBLE_LOCAL_TEMP) pytest -v -x
 
 # Run linters
 lint:
@@ -114,7 +116,7 @@ security:
 # Generate coverage report
 coverage:
 	@echo "Generating coverage report..."
-	pytest --cov=app --cov-report=html --cov-report=term
+	ANSIBLE_LOCAL_TEMP=$(ANSIBLE_LOCAL_TEMP) pytest --cov=app --cov-report=html --cov-report=term
 	@echo ""
 	@echo "Coverage report generated in htmlcov/index.html"
 

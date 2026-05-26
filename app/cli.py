@@ -3,7 +3,9 @@ Command-line interface for DevOps Toolkit
 """
 
 import argparse
+import json
 import sys
+from datetime import datetime
 
 from app.audit.system_audit import SystemAuditor
 from app.config_loader import ConfigLoader
@@ -236,6 +238,101 @@ class DevOpsToolkit:
             return False
         return True
 
+    def build_report(self, full_audit=False):
+        """Build a combined non-mutating health report"""
+        self.logger.info("Building DevOps Toolkit health report")
+
+        doctor = DevOpsDoctor(self.config)
+        doctor_report = doctor.run()
+        monitor_report = self.run_monitor()
+
+        audit_report = {}
+        if full_audit:
+            audit_report = self.run_audit()
+        else:
+            auditor = SystemAuditor(self.notifier)
+            audit_report["inventory"] = auditor.collect_inventory()
+
+        report = {
+            "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+            "overall_status": self._report_status(doctor_report, monitor_report),
+            "doctor": doctor_report,
+            "monitor": monitor_report,
+            "audit": audit_report,
+            "full_audit": full_audit,
+        }
+
+        return report
+
+    def _report_status(self, doctor_report, monitor_report):
+        """Determine overall report status from doctor and monitor results"""
+        if doctor_report.get("status") == "fail":
+            return "fail"
+
+        monitor_unhealthy = False
+        for section in monitor_report.values():
+            if isinstance(section, dict):
+                if section.get("ok") is False or section.get("all_ok") is False:
+                    monitor_unhealthy = True
+
+        if monitor_unhealthy:
+            return "warn"
+
+        return doctor_report.get("status", "warn")
+
+    def render_report_text(self, report):
+        """Render a human-friendly health report"""
+        doctor = report["doctor"]
+        monitor = report["monitor"]
+        audit = report["audit"]
+        inventory = audit.get("inventory", {})
+
+        lines = [
+            "=== DevOps Toolkit Health Report ===",
+            "",
+            f"Generated at: {report['generated_at']}",
+            f"Overall status: {report['overall_status'].upper()}",
+            f"Readiness score: {doctor['score']}/100",
+            "",
+            "Monitoring:",
+            f"  Disk OK: {monitor.get('disk', {}).get('ok', 'N/A')}",
+            f"  System OK: {monitor.get('system', {}).get('all_ok', 'N/A')}",
+            f"  Network OK: {monitor.get('network', {}).get('all_ok', 'N/A')}",
+            "",
+            "Inventory:",
+            f"  Hostname: {inventory.get('hostname', 'unknown')}",
+            f"  OS: {inventory.get('os_info', {}).get('os_name', 'unknown')}",
+            f"  CPU cores: {inventory.get('cpu', {}).get('logical_cores', 'unknown')}",
+            f"  Memory GB: {inventory.get('memory', {}).get('total_gb', 'unknown')}",
+        ]
+
+        if report["full_audit"]:
+            lines.extend(
+                [
+                    "",
+                    "Audit:",
+                    (
+                        "  File permissions OK: "
+                        f"{audit.get('file_permissions', {}).get('ok', 'N/A')}"
+                    ),
+                    f"  Users: {audit.get('users', {}).get('user_count', 'N/A')}",
+                    f"  Cron issues: {len(audit.get('cron', {}).get('issues', []))}",
+                ]
+            )
+
+        return "\n".join(lines)
+
+    def run_report(self, output_format="text", full_audit=False):
+        """Generate a combined health report"""
+        report = self.build_report(full_audit=full_audit)
+
+        if output_format == "json":
+            print(json.dumps(report, indent=2, sort_keys=True))
+        else:
+            print(self.render_report_text(report))
+
+        return report["overall_status"] != "fail"
+
     def setup(self):
         """Initial setup"""
         print("\n=== DevOps Toolkit Setup ===\n")
@@ -271,6 +368,7 @@ Examples:
   %(prog)s monitor          Run only monitoring
   %(prog)s audit            Run only audits
   %(prog)s doctor           Run readiness diagnostics
+  %(prog)s report           Generate a combined health report
   %(prog)s test             Run in test mode
   %(prog)s setup            Initial setup
         """,
@@ -278,7 +376,16 @@ Examples:
 
     parser.add_argument(
         "command",
-        choices=["run", "patch", "monitor", "audit", "doctor", "test", "setup"],
+        choices=[
+            "run",
+            "patch",
+            "monitor",
+            "audit",
+            "doctor",
+            "report",
+            "test",
+            "setup",
+        ],
         default="run",
         nargs="?",
         help="Command to execute (default: run)",
@@ -305,6 +412,12 @@ Examples:
         help="Return a non-zero exit code when doctor finds warnings",
     )
 
+    parser.add_argument(
+        "--full-audit",
+        action="store_true",
+        help="Include full audit scans in report output",
+    )
+
     args = parser.parse_args()
 
     # Handle setup command separately
@@ -318,7 +431,9 @@ Examples:
         config_path=args.config,
         dry_run=args.dry_run,
         test_mode=args.test or args.command == "test",
-        console_logs=not (args.command == "doctor" and args.format == "json"),
+        console_logs=not (
+            args.command in {"doctor", "report"} and args.format == "json"
+        ),
     )
 
     # Execute command
@@ -336,6 +451,9 @@ Examples:
             toolkit.run_audit()
         elif args.command == "doctor":
             success = toolkit.run_doctor(args.format, args.fail_on_warning)
+            sys.exit(0 if success else 1)
+        elif args.command == "report":
+            success = toolkit.run_report(args.format, args.full_audit)
             sys.exit(0 if success else 1)
 
         sys.exit(0)

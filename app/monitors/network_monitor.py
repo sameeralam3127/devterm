@@ -45,10 +45,9 @@ class NetworkMonitor:
             True if port is open, False otherwise
         """
         try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(2)
-            result = sock.connect_ex((host, port))
-            sock.close()
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.settimeout(2)
+                result = sock.connect_ex((host, port))
             return result == 0
         except Exception as e:
             self.logger.error(f"Failed to check port {port}: {e}")
@@ -108,7 +107,7 @@ class NetworkMonitor:
                 try:
                     proc_info = proc.info
                     proc_name = proc_info.get("name", "")
-                    cmdline = " ".join(proc_info.get("cmdline", []))
+                    cmdline = " ".join(proc_info.get("cmdline") or [])
 
                     if (
                         process_name.lower() in proc_name.lower()

@@ -11,6 +11,7 @@ DevOps Toolkit is a comprehensive Python-based automation tool designed for syst
 - **Network Monitoring**: Port availability and process monitoring
 - **Security Auditing**: File permissions, user/group audits, and cron job validation
 - **DevOps Doctor**: One-command readiness score with CI-friendly JSON output and remediation guidance
+- **Health Reports**: Combined doctor, monitoring, and inventory reports in text or JSON
 - **Slack Integration**: Real-time notifications with severity levels (INFO, WARNING, CRITICAL)
 - **Modular Architecture**: Run individual modules or full system checks
 - **Cron Integration**: Automated scheduled execution
@@ -22,6 +23,47 @@ DevOps Toolkit is a comprehensive Python-based automation tool designed for syst
 - **Python**: 3.8 or higher
 - **Privileges**: Root/sudo access for system operations
 - **Dependencies**: psutil, requests, PyYAML (auto-installed)
+
+## Quick Start
+
+Use this path when you want to try the toolkit safely before scheduling it on a server.
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/sameeralam3127/devops-toolkit.git
+cd devops-toolkit
+
+# 2. Install locally in a virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+
+# 3. Create a starter config you can edit without sudo
+cp config.yaml.example config.yaml
+```
+
+For a local trial, edit `config.yaml` and set:
+
+```yaml
+slack:
+  enabled: false
+logging:
+  log_file: ./devops_toolkit.log
+```
+
+You can also trim `monitoring.disk.paths`, `monitoring.ports.check_ports`, and `monitoring.processes.watch_processes` to match services that actually exist on your machine.
+
+```bash
+# 4. Run non-mutating checks first
+devops-toolkit --config ./config.yaml doctor
+devops-toolkit --config ./config.yaml report
+
+# 5. Run monitoring or audit modules when ready
+devops-toolkit --config ./config.yaml monitor
+devops-toolkit --config ./config.yaml audit
+```
+
+For production servers, use the installer in the next section. Most maintenance actions require `sudo` because package management, system logs, and protected audit paths are owned by root.
 
 ## Quick Install
 
@@ -59,9 +101,17 @@ sudo vim /etc/devops_toolkit/config.yaml
 
 **Required Configuration:**
 
-- Add your Slack webhook URL
-- Adjust monitoring thresholds
-- Configure processes and ports to monitor
+- Add your Slack webhook URL, or set `slack.enabled: false` while testing without Slack.
+- Adjust CPU, memory, and disk thresholds for your server.
+- Configure disk paths, processes, and ports that matter for your workload.
+- Confirm `logging.log_file` points to a writable location.
+
+Validate the configuration before running maintenance:
+
+```bash
+devops-toolkit doctor
+devops-toolkit doctor --format json
+```
 
 ## Usage
 
@@ -76,12 +126,19 @@ devops-toolkit patch      # Patch management only
 devops-toolkit monitor    # Monitoring only
 devops-toolkit audit      # Auditing only
 devops-toolkit doctor     # Readiness score and actionable diagnostics
+devops-toolkit report     # Combined health report
 
 # Test mode (dry-run, no changes)
 devops-toolkit test
 
 # CI-friendly doctor output
 devops-toolkit doctor --format json --fail-on-warning
+
+# Automation-friendly health report
+devops-toolkit report --format json
+
+# Include deeper audit scans in the report
+devops-toolkit report --full-audit
 
 # Dry-run mode
 devops-toolkit --dry-run patch
@@ -92,6 +149,50 @@ devops-toolkit setup
 # Help
 devops-toolkit --help
 ```
+
+### Recommended First Runs
+
+Start with read-only commands:
+
+```bash
+devops-toolkit doctor
+devops-toolkit report --format json
+devops-toolkit monitor
+```
+
+Then run deeper checks:
+
+```bash
+devops-toolkit report --full-audit
+devops-toolkit audit
+```
+
+Use dry-run mode before patching:
+
+```bash
+devops-toolkit --dry-run patch
+```
+
+When ready to perform full maintenance:
+
+```bash
+sudo devops-toolkit run
+```
+
+### Command Reference
+
+| Command | What it does | Mutates the system? |
+| --- | --- | --- |
+| `devops-toolkit doctor` | Checks readiness, config, OS support, logging, Slack, and package manager setup | No |
+| `devops-toolkit report` | Builds a combined doctor, monitoring, and inventory report | No |
+| `devops-toolkit report --full-audit` | Adds file permission, user/group, and cron audit details to the report | No |
+| `devops-toolkit monitor` | Checks disk, CPU, memory, ports, processes, uptime, and listening ports | No |
+| `devops-toolkit audit` | Collects inventory and audits users, files, and cron jobs | No |
+| `devops-toolkit --dry-run patch` | Checks patch status without applying updates | No |
+| `devops-toolkit patch` | Checks and applies OS package updates | Yes |
+| `devops-toolkit run` | Runs patch management, monitoring, and audits according to config | Yes, when patch management is enabled |
+| `devops-toolkit test` | Validates config, tests Slack, and runs dry-run checks | No |
+| `devops-toolkit setup` | Writes a default config file under `/etc/devops_toolkit` | Yes |
 
 ## Configuration Reference
 
@@ -375,6 +476,12 @@ pytest tests/test_config_loader.py -v
 pytest --cov=app --cov-report=html
 ```
 
+If your workstation has the `pytest-ansible` plugin installed globally and tests fail while trying to write under your home directory, set a writable Ansible temp directory:
+
+```bash
+make test ANSIBLE_LOCAL_TEMP=/tmp
+```
+
 ### Code Formatting
 
 ```bash
@@ -501,17 +608,31 @@ sudo chown root:root /etc/devops_toolkit/config.yaml
 sudo devops-toolkit run
 ```
 
+For read-only checks, try a command that does not need package-manager access:
+
+```bash
+devops-toolkit doctor
+devops-toolkit report
+```
+
 **2. Slack Notifications Not Working**
 
 - Verify webhook URL in config
 - Test connection: `devops-toolkit test`
 - Check network connectivity
+- Temporarily set `slack.enabled: false` if you want to test the rest of the toolkit without Slack
 
 **3. Module Not Found**
 
 ```bash
 # Reinstall dependencies
 sudo pip3 install -r requirements.txt
+```
+
+If you installed from a clone, reinstall the package in your active virtual environment:
+
+```bash
+pip install -e .
 ```
 
 **4. Cron Job Not Running**
