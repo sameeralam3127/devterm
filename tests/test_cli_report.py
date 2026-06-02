@@ -108,6 +108,29 @@ def test_run_report_outputs_json(mock_notifier, capsys):
     assert payload["audit"]["inventory"]["hostname"] == "test-host"
 
 
+def test_run_report_writes_json_output_file(mock_notifier, tmp_path, capsys):
+    """Report output can be written to a file for CI artifacts or cron jobs."""
+    toolkit = _toolkit(mock_notifier)
+    toolkit.build_report = Mock(
+        return_value={
+            "generated_at": "2026-05-26T12:00:00+05:30",
+            "overall_status": "pass",
+            "doctor": _doctor_report(),
+            "monitor": {},
+            "audit": {"inventory": _inventory()},
+            "full_audit": False,
+        }
+    )
+    output_path = tmp_path / "reports" / "health.json"
+
+    success = toolkit.run_report(output_format="json", output_path=output_path)
+
+    payload = json.loads(output_path.read_text())
+    assert success is True
+    assert payload["overall_status"] == "pass"
+    assert "Report written to" in capsys.readouterr().out
+
+
 def test_render_report_text_includes_full_audit_summary(mock_notifier):
     """Text report should include compact full-audit details when requested."""
     toolkit = _toolkit(mock_notifier)

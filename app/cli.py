@@ -6,6 +6,7 @@ import argparse
 import json
 import sys
 from datetime import datetime
+from pathlib import Path
 
 from app.audit.system_audit import SystemAuditor
 from app.config_loader import ConfigLoader
@@ -322,14 +323,23 @@ class DevOpsToolkit:
 
         return "\n".join(lines)
 
-    def run_report(self, output_format="text", full_audit=False):
+    def run_report(self, output_format="text", full_audit=False, output_path=None):
         """Generate a combined health report"""
         report = self.build_report(full_audit=full_audit)
 
         if output_format == "json":
-            print(json.dumps(report, indent=2, sort_keys=True))
+            rendered = json.dumps(report, indent=2, sort_keys=True)
         else:
-            print(self.render_report_text(report))
+            rendered = self.render_report_text(report)
+
+        if output_path:
+            path = Path(output_path)
+            if path.parent != Path("."):
+                path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(f"{rendered}\n", encoding="utf-8")
+            print(f"Report written to {path}")
+        else:
+            print(rendered)
 
         return report["overall_status"] != "fail"
 
@@ -403,7 +413,7 @@ Examples:
         "--format",
         choices=["text", "json"],
         default="text",
-        help="Output format for doctor command",
+        help="Output format for doctor and report commands",
     )
 
     parser.add_argument(
@@ -418,7 +428,16 @@ Examples:
         help="Include full audit scans in report output",
     )
 
+    parser.add_argument(
+        "--output",
+        help="Write report output to a file instead of stdout",
+        default=None,
+    )
+
     args = parser.parse_args()
+
+    if args.output and args.command != "report":
+        parser.error("--output can only be used with the report command")
 
     # Handle setup command separately
     if args.command == "setup":
@@ -453,7 +472,7 @@ Examples:
             success = toolkit.run_doctor(args.format, args.fail_on_warning)
             sys.exit(0 if success else 1)
         elif args.command == "report":
-            success = toolkit.run_report(args.format, args.full_audit)
+            success = toolkit.run_report(args.format, args.full_audit, args.output)
             sys.exit(0 if success else 1)
 
         sys.exit(0)

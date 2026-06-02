@@ -137,6 +137,9 @@ devops-toolkit doctor --format json --fail-on-warning
 # Automation-friendly health report
 devops-toolkit report --format json
 
+# Save a report artifact
+devops-toolkit report --format json --output ./reports/health.json
+
 # Include deeper audit scans in the report
 devops-toolkit report --full-audit
 
@@ -157,6 +160,7 @@ Start with read-only commands:
 ```bash
 devops-toolkit doctor
 devops-toolkit report --format json
+devops-toolkit report --format json --output ./reports/health.json
 devops-toolkit monitor
 ```
 
@@ -185,6 +189,7 @@ sudo devops-toolkit run
 | --- | --- | --- |
 | `devops-toolkit doctor` | Checks readiness, config, OS support, logging, Slack, and package manager setup | No |
 | `devops-toolkit report` | Builds a combined doctor, monitoring, and inventory report | No |
+| `devops-toolkit report --output ./health.json` | Writes the report output to a file for CI artifacts, audit archives, or cron output | No |
 | `devops-toolkit report --full-audit` | Adds file permission, user/group, and cron audit details to the report | No |
 | `devops-toolkit monitor` | Checks disk, CPU, memory, ports, processes, uptime, and listening ports | No |
 | `devops-toolkit audit` | Collects inventory and audits users, files, and cron jobs | No |
