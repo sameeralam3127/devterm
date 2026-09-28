@@ -21,7 +21,7 @@ bootstrap() {
     echo "error: downloaded archive doesn't look like devterm" >&2; exit 1
   fi
   mkdir -p "$HOME/.devterm"
-  rm -rf "$HOME/.devterm/src"
+  rm -rf "${HOME:?}/.devterm/src"
   mv "$tmp" "$src"
   # `curl | bash` leaves stdin on the pipe; reattach the terminal so prompts work
   if [ ! -t 0 ] && (exec </dev/tty) 2>/dev/null; then
@@ -292,7 +292,7 @@ install_terminal_profile() {
     warn "Terminal.app didn't pick up the profile; open $tmp/$name.terminal by hand"
     return 0
   fi
-  rm -f "$tmp/$name.terminal"; rmdir "$tmp"
+  rm -f "${tmp:?}/${name:?}.terminal"; rmdir "$tmp"
   osascript -e "tell application \"Terminal\" to set font size of settings set \"$name\" to $FONT_SIZE"
   ok "installed \"$name\" (font size $FONT_SIZE)"
 }
