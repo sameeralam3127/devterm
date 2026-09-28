@@ -117,7 +117,9 @@ more than one and switch between them.
 
 - Same colors, font, font size and line spacing as the iTerm2 profile
 - Option key acts as Meta, so ⌥←/→ jump by word
-- Status bar, log highlighting and ⌘-click to open files are iTerm2-only
+- Terminal.app has no status bar, so the right side of the prompt shows your
+  Mac's name, CPU % and RAM used instead (network speed is iTerm2-only)
+- Log highlighting and ⌘-click to open files are iTerm2-only
 - Needs macOS 26 or later for 24-bit color; on older macOS, use iTerm2
 
 **Starship prompt** — context appears only where it's relevant:
@@ -132,6 +134,7 @@ more than one and switch between them.
 | Python version + venv        | Python project files present, or a venv is active                                                                                                     |
 | Go / Node.js                 | matching project files present                                                                                                                        |
 | Docker context               | `Dockerfile` / compose file present                                                                                                                   |
+| Mac name, CPU %, RAM used    | in Terminal.app only (iTerm2 shows these in its status bar)                                                                                          |
 | Command duration             | a command took over 2s                                                                                                                                |
 
 **Shell** — adds a managed block to `~/.zshrc` with the Starship init and

@@ -20,7 +20,8 @@ $docker_context\
 $cmd_duration
 $character"""
 
-right_format = "$time"
+# Mac name, CPU and RAM only appear in Terminal.app (iTerm2 shows them in its status bar)
+right_format = "${custom.host}${custom.cpu}${custom.mem}$time"
 
 # ── Location ─────────────────────────────────────────
 [directory]
@@ -114,6 +115,33 @@ disabled = false
 style = "#8a8f98"
 time_format = "%H:%M"
 format = '[$time]($style)'
+
+# ── System info: Terminal.app only ───────────────────
+# Terminal.app has no status bar, so show what iTerm2's status bar would.
+[custom.host]
+when = 'test "$TERM_PROGRAM" = Apple_Terminal'
+command = 'hostname -s'
+shell = ["sh"]
+symbol = "󰌢 "
+style = "#3f8a3a"
+format = '[$symbol$output]($style) '
+
+[custom.cpu]
+when = 'test "$TERM_PROGRAM" = Apple_Terminal'
+command = '''ps -A -o %cpu= | awk -v n="$(sysctl -n hw.logicalcpu)" '{s+=$1} END {printf "%.0f%%", s/n}''''
+shell = ["sh"]
+symbol = " "
+style = "#1b8a9a"
+format = '[$symbol$output]($style) '
+
+# RAM used = active + wired + compressed, like Activity Monitor's "Memory Used"
+[custom.mem]
+when = 'test "$TERM_PROGRAM" = Apple_Terminal'
+command = '''vm_stat | awk -v ps="$(pagesize)" -v t="$(sysctl -n hw.memsize)" '/Pages active/ {a=$3} /Pages wired/ {w=$4} /occupied by compressor/ {c=$5} END {printf "%.1f/%.0f GB", (a+w+c)*ps/1073741824, t/1073741824}''''
+shell = ["sh"]
+symbol = "󰍛 "
+style = "#8e44ad"
+format = '[$symbol$output]($style) '
 
 # ── Prompt symbol: green on success, red on error ────
 [character]
