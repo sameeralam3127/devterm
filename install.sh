@@ -2,6 +2,37 @@
 # devterm — opinionated iTerm2 / Terminal.app + Starship developer terminal setup for macOS.
 set -euo pipefail
 
+# Run straight from GitHub (no clone needed):
+#   bash -c "$(curl -fsSL https://raw.githubusercontent.com/sameeralam3127/devterm/main/install.sh)"
+#   curl -fsSL https://raw.githubusercontent.com/sameeralam3127/devterm/main/install.sh | bash -s -- -p midnight
+# The script then downloads the repo to ~/.devterm/src and runs the copy there.
+# DEVTERM_REPO (owner/name) and DEVTERM_REF (branch, tag or commit) pick what to download.
+bootstrap() {
+  local repo="${DEVTERM_REPO:-sameeralam3127/devterm}" ref="${DEVTERM_REF:-main}"
+  local src="$HOME/.devterm/src" tmp
+  if ! command -v curl >/dev/null 2>&1 || ! command -v tar >/dev/null 2>&1; then
+    echo "error: curl and tar are required" >&2; exit 1
+  fi
+  echo "==> Downloading devterm ($repo@$ref) to ~/.devterm/src"
+  tmp="$(mktemp -d)"
+  curl -fsSL "https://github.com/$repo/archive/$ref.tar.gz" | tar -xz -C "$tmp" --strip-components 1 \
+    || { echo "error: download failed: https://github.com/$repo/archive/$ref.tar.gz" >&2; exit 1; }
+  if [ ! -f "$tmp/install.sh" ] || [ ! -f "$tmp/lib/common.sh" ]; then
+    echo "error: downloaded archive doesn't look like devterm" >&2; exit 1
+  fi
+  mkdir -p "$HOME/.devterm"
+  rm -rf "$HOME/.devterm/src"
+  mv "$tmp" "$src"
+  # `curl | bash` leaves stdin on the pipe; reattach the terminal so prompts work
+  if [ ! -t 0 ] && (exec </dev/tty) 2>/dev/null; then
+    exec bash "$src/install.sh" "$@" </dev/tty
+  fi
+  exec bash "$src/install.sh" "$@"
+}
+if [ ! -f "${BASH_SOURCE[0]:-}" ]; then
+  bootstrap "$@"
+fi
+
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/common.sh
 . "$REPO_DIR/lib/common.sh"
@@ -121,7 +152,7 @@ choose_font_size() {
     FONT_SIZE="${FONT_SIZE:-16}"
   fi
   case "$FONT_SIZE" in *[!0-9]*|"") die "font size must be a number" ;; esac
-  [ "$FONT_SIZE" -ge 10 ] && [ "$FONT_SIZE" -le 32 ] || die "font size must be 10–32"
+  if [ "$FONT_SIZE" -lt 10 ] || [ "$FONT_SIZE" -gt 32 ]; then die "font size must be 10–32"; fi
 }
 
 brew_has() { command -v brew >/dev/null 2>&1 && brew list "$@" >/dev/null 2>&1; }
