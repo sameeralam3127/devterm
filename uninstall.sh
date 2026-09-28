@@ -66,7 +66,7 @@ fi
 
 if [ "$PURGE" -eq 1 ]; then
   step "State"
-  run rm -rf "$STATE_DIR"; ok "removed ~/.devterm"
+  run rm -rf "${STATE_DIR:?}"; ok "removed ~/.devterm"
 fi
 
 step "Done"

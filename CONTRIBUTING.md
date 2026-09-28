@@ -37,8 +37,10 @@ HOME=/tmp/devterm-home ./install.sh -p midnight --app iterm --skip-brew --yes
 HOME=/tmp/devterm-home ./uninstall.sh --yes
 ```
 
-`--app terminal` always changes the real Terminal.app settings (they aren't
-stored under `HOME`), so run `./uninstall.sh` afterwards.
+Terminal.app profiles are **not** stored under `HOME`, so a scratch `HOME` doesn't
+isolate them: `--app terminal` imports into your real Terminal.app, and
+`uninstall.sh` removes every real `devterm · …` Terminal.app profile. Use
+`--app iterm` for sandboxed tests, or `--dry-run`.
 
 ## Making changes
 
