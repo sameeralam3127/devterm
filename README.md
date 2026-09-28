@@ -39,9 +39,27 @@ Prefer to install them yourself? Run with `--skip-brew`; the installer still pri
 
 ## Quick start
 
+**One command, no clone needed:**
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/sameeralam3127/devterm/main/install.sh)"
+```
+
+To pass options, pipe it into `bash -s --`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/sameeralam3127/devterm/main/install.sh | bash -s -- --profile midnight --app terminal
+```
+
+This downloads the repo to `~/.devterm/src` and runs the installer from there.
+Want to read the script first? Open the
+[install.sh](https://github.com/sameeralam3127/devterm/blob/main/install.sh) link,
+or clone the repo and add `--dry-run`:
+
 ```bash
 git clone https://github.com/sameeralam3127/devterm.git
 cd devterm
+./install.sh --dry-run          # preview every change
 ./install.sh                    # iTerm2 + Terminal.app
 ./install.sh --app terminal     # only macOS Terminal.app (doesn't install iTerm2)
 ./install.sh --app iterm        # only iTerm2
@@ -166,6 +184,12 @@ Re-running the installer is safe: profiles and the shell block are replaced, not
 ./uninstall.sh --purge    # also deletes ~/.devterm backups
 ```
 
+Installed with curl? The uninstaller is in `~/.devterm/src`:
+
+```bash
+~/.devterm/src/uninstall.sh
+```
+
 Homebrew packages are left installed; the script prints the command to remove them.
 
 ## Troubleshooting
@@ -205,6 +229,12 @@ Themes are small JSON files; the iTerm2 and Terminal.app profiles and the Starsh
 Shared prompt layout lives in `templates/starship.toml.tmpl`; terminal settings live in `tools/build.py`.
 CI checks that generated files are up to date (`python3 tools/build.py --check`).
 
+## Contributing
+
+PRs are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Every PR runs CI and
+needs a maintainer's approval before merging. Report security issues privately
+as described in [SECURITY.md](SECURITY.md).
+
 ## License
 
-MIT
+[MIT](LICENSE)
