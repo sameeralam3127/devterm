@@ -5,11 +5,21 @@ on:
     branches: [main]
   pull_request:
 
+# Least privilege: CI only needs to read the code
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: ShellCheck
         run: shellcheck -x install.sh uninstall.sh lib/common.sh tools/record-demo.sh
       - name: Generated profiles are up to date
@@ -19,9 +29,24 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Install (dry run, all apps)
         run: ./install.sh --profile midnight --dry-run --yes
       - name: Install (dry run, Terminal.app only)
         run: ./install.sh --profile daylight --app terminal --dry-run --yes
       - name: Uninstall (dry run)
         run: ./uninstall.sh --dry-run --yes
+      # Same as the README's curl one-liners, but for the commit under test
+      - name: Curl install (bash -c form)
+        env:
+          DEVTERM_REPO: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          DEVTERM_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          bash -c "$(cat install.sh)" devterm --profile ember --dry-run --yes
+          test -x "$HOME/.devterm/src/uninstall.sh"
+      - name: Curl install (pipe form)
+        env:
+          DEVTERM_REPO: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          DEVTERM_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: bash -s -- --profile midnight --dry-run --yes < install.sh
