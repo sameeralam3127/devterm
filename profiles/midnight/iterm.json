@@ -1,0 +1,388 @@
+{
+  "Profiles": [
+    {
+      "Name": "devterm · Midnight",
+      "Guid": "BD142F40-6029-55AE-B629-C6294EE94CFE",
+      "Tags": [
+        "devterm"
+      ],
+      "Normal Font": "JetBrainsMonoNFM-Regular 16",
+      "Non Ascii Font": "JetBrainsMonoNFM-Regular 16",
+      "Use Non-ASCII Font": false,
+      "ASCII Ligatures": true,
+      "Non-ASCII Ligatures": true,
+      "Use Bold Font": true,
+      "Use Bright Bold": true,
+      "Use Italic Font": true,
+      "Horizontal Spacing": 1.0,
+      "Vertical Spacing": 1.15,
+      "Unicode Version": 9,
+      "Side Margins": 16,
+      "Top Bottom Margins": 12,
+      "Columns": 150,
+      "Rows": 42,
+      "Custom Directory": "Recycle",
+      "Close Sessions On End": true,
+      "Terminal Type": "xterm-256color",
+      "Unlimited Scrollback": true,
+      "Scrollback Lines": 0,
+      "Mouse Reporting": true,
+      "Load Shell Integration Automatically": true,
+      "Cursor Type": 2,
+      "Blinking Cursor": true,
+      "Use Cursor Guide": true,
+      "Silence Bell": true,
+      "Visual Bell": true,
+      "Flashing Bell": false,
+      "Option Key Sends": 2,
+      "Right Option Key Sends": 0,
+      "Keyboard Map": {
+        "0xf702-0x280000": {
+          "Action": 10,
+          "Text": "b"
+        },
+        "0xf703-0x280000": {
+          "Action": 10,
+          "Text": "f"
+        },
+        "0xf702-0x300000": {
+          "Action": 11,
+          "Text": "0x01"
+        },
+        "0xf703-0x300000": {
+          "Action": 11,
+          "Text": "0x05"
+        },
+        "0x7f-0x80000": {
+          "Action": 11,
+          "Text": "0x17"
+        },
+        "0x7f-0x100000": {
+          "Action": 11,
+          "Text": "0x15"
+        }
+      },
+      "Semantic History": {
+        "action": "best editor",
+        "editor": "com.microsoft.VSCode",
+        "text": ""
+      },
+      "Triggers": [
+        {
+          "regex": "\\b(ERROR|FATAL|CRITICAL|PANIC|Error|Failed|FAILED)\\b",
+          "action": "HighlightTrigger",
+          "parameter": "{#f7768e,}",
+          "partial": true
+        },
+        {
+          "regex": "\\b(WARN|WARNING|Warning|CrashLoopBackOff|OOMKilled|Evicted|Pending)\\b",
+          "action": "HighlightTrigger",
+          "parameter": "{#e0af68,}",
+          "partial": true
+        },
+        {
+          "regex": "\\b(SUCCESS|PASSED|Running|Ready|Completed)\\b",
+          "action": "HighlightTrigger",
+          "parameter": "{#9ece6a,}",
+          "partial": true
+        }
+      ],
+      "Show Status Bar": true,
+      "Status Bar Layout": {
+        "components": [
+          {
+            "class": "iTermStatusBarWorkingDirectoryComponent",
+            "configuration": {
+              "knobs": {
+                "base: priority": 10,
+                "base: compression resistance": 1
+              },
+              "layout advanced configuration dictionary value": {
+                "algorithm": 0,
+                "remove empty components": true,
+                "font": "JetBrainsMonoNFM-Regular 13",
+                "auto-rainbow style": 3
+              }
+            }
+          },
+          {
+            "class": "iTermStatusBarGitComponent",
+            "configuration": {
+              "knobs": {
+                "base: priority": 9,
+                "base: compression resistance": 1
+              },
+              "layout advanced configuration dictionary value": {
+                "algorithm": 0,
+                "remove empty components": true,
+                "font": "JetBrainsMonoNFM-Regular 13",
+                "auto-rainbow style": 3
+              }
+            }
+          },
+          {
+            "class": "iTermStatusBarHostnameComponent",
+            "configuration": {
+              "knobs": {
+                "base: priority": 7,
+                "base: compression resistance": 1
+              },
+              "layout advanced configuration dictionary value": {
+                "algorithm": 0,
+                "remove empty components": true,
+                "font": "JetBrainsMonoNFM-Regular 13",
+                "auto-rainbow style": 3
+              }
+            }
+          },
+          {
+            "class": "iTermStatusBarCPUUtilizationComponent",
+            "configuration": {
+              "knobs": {
+                "base: priority": 5,
+                "base: compression resistance": 1
+              },
+              "layout advanced configuration dictionary value": {
+                "algorithm": 0,
+                "remove empty components": true,
+                "font": "JetBrainsMonoNFM-Regular 13",
+                "auto-rainbow style": 3
+              }
+            }
+          },
+          {
+            "class": "iTermStatusBarMemoryUtilizationComponent",
+            "configuration": {
+              "knobs": {
+                "base: priority": 5,
+                "base: compression resistance": 1
+              },
+              "layout advanced configuration dictionary value": {
+                "algorithm": 0,
+                "remove empty components": true,
+                "font": "JetBrainsMonoNFM-Regular 13",
+                "auto-rainbow style": 3
+              }
+            }
+          },
+          {
+            "class": "iTermStatusBarNetworkUtilizationComponent",
+            "configuration": {
+              "knobs": {
+                "base: priority": 3,
+                "base: compression resistance": 1
+              },
+              "layout advanced configuration dictionary value": {
+                "algorithm": 0,
+                "remove empty components": true,
+                "font": "JetBrainsMonoNFM-Regular 13",
+                "auto-rainbow style": 3
+              }
+            }
+          },
+          {
+            "class": "iTermStatusBarClockComponent",
+            "configuration": {
+              "knobs": {
+                "base: priority": 6,
+                "base: compression resistance": 1,
+                "format": "HH:mm"
+              },
+              "layout advanced configuration dictionary value": {
+                "algorithm": 0,
+                "remove empty components": true,
+                "font": "JetBrainsMonoNFM-Regular 13",
+                "auto-rainbow style": 3
+              }
+            }
+          }
+        ],
+        "advanced configuration": {
+          "algorithm": 0,
+          "remove empty components": true,
+          "font": "JetBrainsMonoNFM-Regular 13",
+          "auto-rainbow style": 3
+        }
+      },
+      "Background Color": {
+        "Red Component": 0.102,
+        "Green Component": 0.1059,
+        "Blue Component": 0.149,
+        "Alpha Component": 1.0,
+        "Color Space": "sRGB"
+      },
+      "Foreground Color": {
+        "Red Component": 0.7529,
+        "Green Component": 0.7922,
+        "Blue Component": 0.9608,
+        "Alpha Component": 1.0,
+        "Color Space": "sRGB"
+      },
+      "Bold Color": {
+        "Red Component": 0.7529,
+        "Green Component": 0.7922,
+        "Blue Component": 0.9608,
+        "Alpha Component": 1.0,
+        "Color Space": "sRGB"
+      },
+      "Cursor Color": {
+        "Red Component": 0.7529,
+        "Green Component": 0.7922,
+        "Blue Component": 0.9608,
+        "Alpha Component": 1.0,
+        "Color Space": "sRGB"
+      },
+      "Cursor Text Color": {
+        "Red Component": 0.102,
+        "Green Component": 0.1059,
+        "Blue Component": 0.149,
+        "Alpha Component": 1.0,
+        "Color Space": "sRGB"
+      },
+      "Selection Color": {
+        "Red Component": 0.2,
+        "Green Component": 0.2745,
+        "Blue Component": 0.4863,
+        "Alpha Component": 1.0,
+        "Color Space": "sRGB"
+      },
+      "Selected Text Color": {
+        "Red Component": 0.7529,
+        "Green Component": 0.7922,
+        "Blue Component": 0.9608,
+        "Alpha Component": 1.0,
+        "Color Space": "sRGB"
+      },
+      "Link Color": {
+        "Red Component": 0.4784,
+        "Green Component": 0.6353,
+        "Blue Component": 0.9686,
+        "Alpha Component": 1.0,
+        "Color Space": "sRGB"
+      },
+      "Cursor Guide Color": {
+        "Red Component": 0.2,
+        "Green Component": 0.2745,
+        "Blue Component": 0.4863,
+        "Alpha Component": 0.35,
+        "Color Space": "sRGB"
+      },
+      "Transparency": 0.06,
+      "Blur": true,
+      "Blur Radius": 18,
+      "Minimum Contrast": 0.0,
+      "Ansi 0 Color": {
+        "Red Component": 0.0824,
+        "Green Component": 0.0863,
+        "Blue Component": 0.1176,
+        "Alpha Component": 1.0,
+        "Color Space": "sRGB"
+      },
+      "Ansi 1 Color": {
+        "Red Component": 0.9686,
+        "Green Component": 0.4627,
+        "Blue Component": 0.5569,
+        "Alpha Component": 1.0,
+        "Color Space": "sRGB"
+      },
+      "Ansi 2 Color": {
+        "Red Component": 0.6196,
+        "Green Component": 0.8078,
+        "Blue Component": 0.4157,
+        "Alpha Component": 1.0,
+        "Color Space": "sRGB"
+      },
+      "Ansi 3 Color": {
+        "Red Component": 0.8784,
+        "Green Component": 0.6863,
+        "Blue Component": 0.4078,
+        "Alpha Component": 1.0,
+        "Color Space": "sRGB"
+      },
+      "Ansi 4 Color": {
+        "Red Component": 0.4784,
+        "Green Component": 0.6353,
+        "Blue Component": 0.9686,
+        "Alpha Component": 1.0,
+        "Color Space": "sRGB"
+      },
+      "Ansi 5 Color": {
+        "Red Component": 0.7333,
+        "Green Component": 0.6039,
+        "Blue Component": 0.9686,
+        "Alpha Component": 1.0,
+        "Color Space": "sRGB"
+      },
+      "Ansi 6 Color": {
+        "Red Component": 0.4902,
+        "Green Component": 0.8118,
+        "Blue Component": 1.0,
+        "Alpha Component": 1.0,
+        "Color Space": "sRGB"
+      },
+      "Ansi 7 Color": {
+        "Red Component": 0.6627,
+        "Green Component": 0.6941,
+        "Blue Component": 0.8392,
+        "Alpha Component": 1.0,
+        "Color Space": "sRGB"
+      },
+      "Ansi 8 Color": {
+        "Red Component": 0.2549,
+        "Green Component": 0.2824,
+        "Blue Component": 0.4078,
+        "Alpha Component": 1.0,
+        "Color Space": "sRGB"
+      },
+      "Ansi 9 Color": {
+        "Red Component": 1.0,
+        "Green Component": 0.5373,
+        "Blue Component": 0.6157,
+        "Alpha Component": 1.0,
+        "Color Space": "sRGB"
+      },
+      "Ansi 10 Color": {
+        "Red Component": 0.7255,
+        "Green Component": 0.949,
+        "Blue Component": 0.4863,
+        "Alpha Component": 1.0,
+        "Color Space": "sRGB"
+      },
+      "Ansi 11 Color": {
+        "Red Component": 1.0,
+        "Green Component": 0.7804,
+        "Blue Component": 0.4667,
+        "Alpha Component": 1.0,
+        "Color Space": "sRGB"
+      },
+      "Ansi 12 Color": {
+        "Red Component": 0.5529,
+        "Green Component": 0.6902,
+        "Blue Component": 1.0,
+        "Alpha Component": 1.0,
+        "Color Space": "sRGB"
+      },
+      "Ansi 13 Color": {
+        "Red Component": 0.7804,
+        "Green Component": 0.6627,
+        "Blue Component": 1.0,
+        "Alpha Component": 1.0,
+        "Color Space": "sRGB"
+      },
+      "Ansi 14 Color": {
+        "Red Component": 0.6431,
+        "Green Component": 0.8549,
+        "Blue Component": 1.0,
+        "Alpha Component": 1.0,
+        "Color Space": "sRGB"
+      },
+      "Ansi 15 Color": {
+        "Red Component": 0.7529,
+        "Green Component": 0.7922,
+        "Blue Component": 0.9608,
+        "Alpha Component": 1.0,
+        "Color Space": "sRGB"
+      }
+    }
+  ]
+}

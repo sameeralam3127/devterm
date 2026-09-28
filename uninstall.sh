@@ -1,167 +1,74 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# Remove everything devterm installed. Homebrew packages are left in place.
+set -euo pipefail
 
-# DevOps Toolkit Uninstallation Script
-# This script removes the DevOps Toolkit from the system
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/common.sh
+. "$REPO_DIR/lib/common.sh"
 
-set -e
+PURGE=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -n|--dry-run) DRY_RUN=1 ;;
+    -y|--yes)     ASSUME_YES=1 ;;
+    --purge)      PURGE=1 ;;
+    -h|--help)
+      echo "Usage: ./uninstall.sh [--dry-run] [--yes] [--purge]"
+      echo "  --purge  also delete ~/.devterm (including backups)"
+      exit 0 ;;
+    *) die "unknown option: $1" ;;
+  esac
+  shift
+done
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+printf '%sdevterm uninstall%s\n' "$C_BOLD" "$C_RESET"
+confirm "Remove devterm iTerm2 / Terminal.app profiles, prompt config and shell block?" || exit 0
 
-# Installation paths
-INSTALL_DIR="/opt/devops_toolkit"
-CONFIG_DIR="/etc/devops_toolkit"
-LOG_FILE="/var/log/devops_toolkit.log"
-BIN_LINK="/usr/local/bin/devops-toolkit"
+step "iTerm2 profiles"
+found=0
+for f in "$DYN_DIR"/devterm-*.json; do
+  [ -e "$f" ] || continue
+  run rm -f "$f"; ok "removed $(basename "$f")"; found=1
+done
+[ "$found" -eq 1 ] || info "none installed"
 
-# Print colored message
-print_message() {
-    local color=$1
-    local message=$2
-    echo -e "${color}${message}${NC}"
-}
+step "Terminal.app profiles"
+if ! terminal_has_devterm_profiles; then
+  info "none installed"
+elif [ "$DRY_RUN" -eq 1 ]; then
+  run "remove devterm profiles from Terminal.app"
+elif removed="$(terminal_remove_profiles "devterm · ")"; then
+  while IFS= read -r name; do [ -z "$name" ] || ok "removed \"$name\""; done <<EOF
+$removed
+EOF
+else
+  warn "couldn't control Terminal.app — delete devterm profiles in Terminal → Settings → Profiles"
+fi
 
-# Check if running as root
-check_root() {
-    if [[ $EUID -ne 0 ]]; then
-        print_message "$RED" "Error: This script must be run as root (use sudo)"
-        exit 1
-    fi
-}
+step "Shell"
+if [ -f "$ZSHRC" ] && grep -qF "$MARK_START" "$ZSHRC"; then
+  remove_zsh_block "$ZSHRC"; ok "removed devterm block from $(pretty_path "$ZSHRC")"
+else
+  info "no devterm block found"
+fi
 
-# Confirm uninstallation
-confirm_uninstall() {
-    echo ""
-    print_message "$YELLOW" "======================================"
-    print_message "$YELLOW" "  DevOps Toolkit Uninstallation"
-    print_message "$YELLOW" "======================================"
-    echo ""
-    print_message "$RED" "WARNING: This will remove DevOps Toolkit from your system."
-    echo ""
+step "Starship config"
+backup=""
+[ -f "$STATE_DIR/last_backup" ] && backup="$(cat "$STATE_DIR/last_backup")"
+if [ -n "$backup" ] && [ -f "$backup/$(basename "$STARSHIP_CFG")" ]; then
+  run cp -p "$backup/$(basename "$STARSHIP_CFG")" "$STARSHIP_CFG"
+  ok "restored your previous starship.toml"
+elif [ -f "$STARSHIP_CFG" ] && head -n 1 "$STARSHIP_CFG" | grep -q '^# devterm'; then
+  run rm -f "$STARSHIP_CFG"; ok "removed $(pretty_path "$STARSHIP_CFG")"
+else
+  info "left $(pretty_path "$STARSHIP_CFG") untouched (not managed by devterm)"
+fi
 
-    read -p "Are you sure you want to continue? (yes/no): " CONFIRM
+if [ "$PURGE" -eq 1 ]; then
+  step "State"
+  run rm -rf "$STATE_DIR"; ok "removed ~/.devterm"
+fi
 
-    if [[ "$CONFIRM" != "yes" ]]; then
-        print_message "$GREEN" "Uninstallation cancelled."
-        exit 0
-    fi
-}
-
-# Remove cron jobs
-remove_cron() {
-    print_message "$YELLOW" "Removing cron jobs..."
-
-    if crontab -l 2>/dev/null | grep -q "devops-toolkit"; then
-        crontab -l 2>/dev/null | grep -v "devops-toolkit" | crontab -
-        print_message "$GREEN" "Cron jobs removed"
-    else
-        print_message "$YELLOW" "No cron jobs found"
-    fi
-}
-
-# Remove files
-remove_files() {
-    print_message "$YELLOW" "Removing installation files..."
-
-    # Remove installation directory
-    if [ -d "$INSTALL_DIR" ]; then
-        rm -rf "$INSTALL_DIR"
-        print_message "$GREEN" "Removed $INSTALL_DIR"
-    else
-        print_message "$YELLOW" "Installation directory not found"
-    fi
-
-    # Remove binary link
-    if [ -f "$BIN_LINK" ]; then
-        rm -f "$BIN_LINK"
-        print_message "$GREEN" "Removed $BIN_LINK"
-    else
-        print_message "$YELLOW" "Binary link not found"
-    fi
-}
-
-# Remove configuration
-remove_config() {
-    echo ""
-    read -p "Do you want to remove configuration files? (y/n): " REMOVE_CONFIG
-
-    if [[ "$REMOVE_CONFIG" =~ ^[Yy]$ ]]; then
-        if [ -d "$CONFIG_DIR" ]; then
-            rm -rf "$CONFIG_DIR"
-            print_message "$GREEN" "Removed $CONFIG_DIR"
-        else
-            print_message "$YELLOW" "Configuration directory not found"
-        fi
-    else
-        print_message "$YELLOW" "Configuration files preserved at $CONFIG_DIR"
-    fi
-}
-
-# Remove logs
-remove_logs() {
-    echo ""
-    read -p "Do you want to remove log files? (y/n): " REMOVE_LOGS
-
-    if [[ "$REMOVE_LOGS" =~ ^[Yy]$ ]]; then
-        if [ -f "$LOG_FILE" ]; then
-            rm -f "$LOG_FILE"
-            print_message "$GREEN" "Removed $LOG_FILE"
-        else
-            print_message "$YELLOW" "Log file not found"
-        fi
-
-        # Remove rotated logs
-        if ls /var/log/devops_toolkit.log.* 1> /dev/null 2>&1; then
-            rm -f /var/log/devops_toolkit.log.*
-            print_message "$GREEN" "Removed rotated log files"
-        fi
-    else
-        print_message "$YELLOW" "Log files preserved at $LOG_FILE"
-    fi
-}
-
-# Remove Python dependencies
-remove_dependencies() {
-    echo ""
-    read -p "Do you want to remove Python dependencies? (y/n): " REMOVE_DEPS
-
-    if [[ "$REMOVE_DEPS" =~ ^[Yy]$ ]]; then
-        print_message "$YELLOW" "Removing Python dependencies..."
-        python3 -m pip uninstall -y psutil requests PyYAML 2>/dev/null || true
-        print_message "$GREEN" "Python dependencies removed"
-    else
-        print_message "$YELLOW" "Python dependencies preserved"
-    fi
-}
-
-# Main uninstallation
-main() {
-    check_root
-    confirm_uninstall
-
-    echo ""
-    print_message "$YELLOW" "Starting uninstallation..."
-    echo ""
-
-    remove_cron
-    remove_files
-    remove_config
-    remove_logs
-    remove_dependencies
-
-    echo ""
-    print_message "$GREEN" "======================================"
-    print_message "$GREEN" "  Uninstallation Complete!"
-    print_message "$GREEN" "======================================"
-    echo ""
-    print_message "$GREEN" "DevOps Toolkit has been removed from your system."
-    echo ""
-}
-
-# Run main uninstallation
-main
-
-# Made with Bob
+step "Done"
+info "Homebrew packages were kept. To remove them:"
+info "  brew uninstall starship eza && brew uninstall --cask font-jetbrains-mono-nerd-font"

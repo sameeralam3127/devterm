@@ -1,707 +1,389 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# devterm — opinionated iTerm2 / Terminal.app + Starship developer terminal setup for macOS.
+set -euo pipefail
 
-# DevOps Toolkit Installation Script
-# Modern installation with Python checks and uv support
-#
-# Usage:
-#   sudo bash install.sh                    # Interactive installation
-#   sudo NON_INTERACTIVE=1 bash install.sh  # Non-interactive installation
-#
-# Environment Variables:
-#   NON_INTERACTIVE - Skip all interactive prompts (default: not set)
-#   SKIP_UV         - Skip uv installation prompt (default: not set)
-#   SKIP_CRON       - Skip cron setup (default: not set)
-#   SKIP_TEST       - Skip test execution (default: not set)
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/common.sh
+. "$REPO_DIR/lib/common.sh"
 
-# Exit on error, but handle errors gracefully
-set -e
-trap 'handle_error $? $LINENO' ERR
+PROFILES_DIR="$REPO_DIR/profiles"
+PROFILE=""
+FONT_SIZE=""
+APP="all"
+SKIP_BREW=0
+WITH_EZA=1
+SET_DEFAULT=0
 
-# Constants
-readonly INTERACTIVE_TIMEOUT=30
-readonly PYTHON_MIN_MAJOR=3
-readonly PYTHON_MIN_MINOR=8
-readonly UV_INSTALL_URL="https://astral.sh/uv/install.sh"
+usage() {
+  cat <<USAGE
+Usage: ./install.sh [options]
 
-# Error handler
-handle_error() {
-    local exit_code=$1
-    local line_number=$2
-    echo ""
-    print_message "$RED" "✗ Installation failed at line $line_number with exit code $exit_code"
-    print_message "$YELLOW" "  Please check the error message above and try again"
-    print_message "$YELLOW" "  For help, visit: https://github.com/sameeralam3127/devops-toolkit/issues"
-    exit "$exit_code"
+Options:
+  -p, --profile NAME     Theme to install (see --list). Prompts if omitted.
+  -f, --font-size N      Terminal font size, 10–32 (default: 16)
+  -a, --app APP          Where to install: iterm, terminal (macOS Terminal.app)
+                         or all (default: all)
+  -l, --list             List available profiles and exit
+      --set-default      Make the profile the default (for iTerm2, quit it first)
+      --no-eza           Don't install eza or add the ls aliases
+      --skip-brew        Don't install anything with Homebrew
+  -n, --dry-run          Show what would change without changing anything
+  -y, --yes              Don't ask for confirmation
+  -h, --help             Show this help
+
+Examples:
+  ./install.sh
+  ./install.sh --profile midnight --font-size 17 --set-default
+  ./install.sh -p daylight --dry-run
+  ./install.sh -p ember --app terminal
+USAGE
 }
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
-# Installation paths
-INSTALL_DIR="/opt/devops_toolkit"
-CONFIG_DIR="/etc/devops_toolkit"
-CONFIG_FILE="${CONFIG_DIR}/config.yaml"
-LOG_DIR="/var/log"
-LOG_FILE="${LOG_DIR}/devops_toolkit.log"
-BIN_LINK="/usr/local/bin/devops-toolkit"
-
-# Track if apt-get update has been run
-APT_UPDATED=false
-
-# Print colored message
-print_message() {
-    local color=$1
-    local message=$2
-    echo -e "${color}${message}${NC}"
+list_profiles() {
+  local d name desc
+  for d in "$PROFILES_DIR"/*/; do
+    [ -f "$d/profile.conf" ] || continue
+    name="$(conf_get "$d/profile.conf" name)"
+    desc="$(conf_get "$d/profile.conf" description)"
+    printf '  %s%-10s%s %s\n' "$C_BOLD" "$name" "$C_RESET" "$desc"
+  done
 }
 
-# Print header
-print_header() {
-    echo ""
-    print_message "$BLUE" "╔════════════════════════════════════════╗"
-    print_message "$BLUE" "║     DevOps Toolkit Installation        ║"
-    print_message "$BLUE" "║     Production-Grade System Monitor    ║"
-    print_message "$BLUE" "╚════════════════════════════════════════╝"
-    echo ""
-}
-
-# Sanitize string for use in sed command
-sanitize_for_sed() {
-    local input="$1"
-    # Escape special characters: / \ & |
-    echo "$input" | sed 's/[\/&|]/\\&/g'
-}
-
-# Validate cron schedule format
-validate_cron_schedule() {
-    local schedule="$1"
-    # Basic validation: 5 fields separated by spaces
-    # Fields: minute hour day month weekday
-    if [[ "$schedule" =~ ^[0-9\*\,\-\/]+[[:space:]]+[0-9\*\,\-\/]+[[:space:]]+[0-9\*\,\-\/]+[[:space:]]+[0-9\*\,\-\/]+[[:space:]]+[0-9\*\,\-\/]+$ ]]; then
-        return 0
-    else
-        return 1
-    fi
-}
-
-# Get package manager for the current OS
-get_package_manager() {
-    if [[ "$OS" == "ubuntu" ]] || [[ "$OS" == "debian" ]]; then
-        echo "apt-get"
-    elif [[ "$OS" =~ ^(rhel|centos|fedora|rocky|almalinux)$ ]]; then
-        if command -v dnf &> /dev/null; then
-            echo "dnf"
-        else
-            echo "yum"
-        fi
-    else
-        echo "unknown"
-    fi
-}
-
-# Run apt-get update once if needed
-run_apt_update() {
-    if [[ "$OS" == "ubuntu" ]] || [[ "$OS" == "debian" ]]; then
-        if [ "$APT_UPDATED" = false ]; then
-            print_message "$BLUE" "  Updating package lists..."
-            apt-get update -qq
-            APT_UPDATED=true
-        fi
-    fi
-}
-
-# Check if running as root
-check_root() {
-    if [[ $EUID -ne 0 ]]; then
-        print_message "$RED" "✗ Error: This script must be run as root"
-        print_message "$YELLOW" "  Please run: sudo bash install.sh"
-        exit 1
-    fi
-    print_message "$GREEN" "✓ Running with root privileges"
-}
-
-# Detect OS
-detect_os() {
-    if [ -f /etc/os-release ]; then
-        . /etc/os-release
-        OS=$ID
-        # VERSION variable is sourced from /etc/os-release but not used directly
-        # shellcheck disable=SC2034
-        VERSION=$VERSION_ID
-        print_message "$GREEN" "✓ Detected OS: $PRETTY_NAME"
-    else
-        print_message "$RED" "✗ Cannot detect OS"
-        exit 1
-    fi
-}
-
-# Check Python installation
-check_python() {
-    print_message "$YELLOW" "Checking Python installation..."
-
-    if command -v python3 &> /dev/null; then
-        PYTHON_VERSION=$(python3 --version 2>&1 | awk '{print $2}')
-        PYTHON_MAJOR=$(echo "$PYTHON_VERSION" | cut -d. -f1)
-        PYTHON_MINOR=$(echo "$PYTHON_VERSION" | cut -d. -f2)
-
-        # Validate that version numbers are numeric
-        if ! [[ "$PYTHON_MAJOR" =~ ^[0-9]+$ ]] || ! [[ "$PYTHON_MINOR" =~ ^[0-9]+$ ]]; then
-            print_message "$RED" "✗ Could not parse Python version: $PYTHON_VERSION"
-            return 1
-        fi
-
-        if [ "$PYTHON_MAJOR" -ge "$PYTHON_MIN_MAJOR" ] && [ "$PYTHON_MINOR" -ge "$PYTHON_MIN_MINOR" ]; then
-            print_message "$GREEN" "✓ Python $PYTHON_VERSION found (>= ${PYTHON_MIN_MAJOR}.${PYTHON_MIN_MINOR} required)"
-            return 0
-        else
-            print_message "$RED" "✗ Python $PYTHON_VERSION found but >= ${PYTHON_MIN_MAJOR}.${PYTHON_MIN_MINOR} required"
-            return 1
-        fi
-    else
-        print_message "$RED" "✗ Python 3 not found"
-        return 1
-    fi
-}
-
-# Install Python
-install_python() {
-    print_message "$YELLOW" "Installing Python 3..."
-
-    local pkg_manager
-    pkg_manager=$(get_package_manager)
-
-    case "$pkg_manager" in
-        apt-get)
-            run_apt_update
-            apt-get install -y python3 python3-pip python3-venv
-            ;;
-        dnf)
-            dnf install -y python3 python3-pip
-            ;;
-        yum)
-            yum install -y python3 python3-pip
-            ;;
-        *)
-            print_message "$RED" "✗ Unsupported OS for automatic Python installation"
-            print_message "$YELLOW" "  Please install Python ${PYTHON_MIN_MAJOR}.${PYTHON_MIN_MINOR}+ manually"
-            exit 1
-            ;;
+parse_args() {
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -p|--profile)   [ $# -ge 2 ] || die "$1 needs a value"; PROFILE="$2"; shift ;;
+      -f|--font-size) [ $# -ge 2 ] || die "$1 needs a value"; FONT_SIZE="$2"; shift ;;
+      -a|--app)       [ $# -ge 2 ] || die "$1 needs a value"; APP="$2"; shift ;;
+      -l|--list)      echo "Available profiles:"; list_profiles; exit 0 ;;
+      --set-default)  SET_DEFAULT=1 ;;
+      --no-eza)       WITH_EZA=0 ;;
+      --skip-brew)    SKIP_BREW=1 ;;
+      -n|--dry-run)   DRY_RUN=1 ;;
+      -y|--yes)       ASSUME_YES=1 ;;
+      -h|--help)      usage; exit 0 ;;
+      *)              usage; die "unknown option: $1" ;;
     esac
-
-    print_message "$GREEN" "✓ Python installed successfully"
+    shift
+  done
 }
 
-# Check and install uv (optional but recommended)
-check_uv() {
-    if command -v uv &> /dev/null; then
-        print_message "$GREEN" "✓ uv package manager found"
-        return 0
+preflight() {
+  if [ "$(uname -s)" != "Darwin" ] && [ "${DEVTERM_SKIP_OS_CHECK:-0}" != "1" ]; then
+    die "devterm supports macOS only"
+  fi
+  [ -d "$PROFILES_DIR" ] || die "profiles/ not found — run from a full clone of the repo"
+  case "$APP" in iterm|terminal|all) ;; *) die "--app must be iterm, terminal or all" ;; esac
+}
+
+want() { [ "$APP" = all ] || [ "$APP" = "$1" ]; }
+
+choose_profile() {
+  local names=() d i choice
+  for d in "$PROFILES_DIR"/*/; do
+    [ -f "$d/profile.conf" ] && names+=("$(basename "$d")")
+  done
+  [ ${#names[@]} -gt 0 ] || die "no profiles found in $PROFILES_DIR"
+
+  if [ -z "$PROFILE" ]; then
+    if [ ! -t 0 ] || [ "$ASSUME_YES" -eq 1 ]; then
+      PROFILE="${names[0]}"
     else
-        print_message "$YELLOW" "  uv not found (optional but recommended)"
-
-        # Non-interactive mode check
-        if [ -n "$NON_INTERACTIVE" ] || [ -n "$SKIP_UV" ]; then
-            print_message "$YELLOW" "  Skipping uv installation (non-interactive mode)"
-            return 1
-        fi
-
-        read -t "$INTERACTIVE_TIMEOUT" -p "  Install uv for faster dependency management? (y/n): " INSTALL_UV || {
-            print_message "$YELLOW" "  No response, skipping uv installation"
-            return 1
-        }
-
-        if [[ "$INSTALL_UV" =~ ^[Yy]$ ]]; then
-            print_message "$YELLOW" "  Installing uv..."
-            print_message "$YELLOW" "  ⚠️  Downloading and executing remote script from $UV_INSTALL_URL"
-
-            # Download script first for inspection (more secure than piping directly)
-            local temp_script="/tmp/uv-install-$$.sh"
-            if curl -LsSf "$UV_INSTALL_URL" -o "$temp_script" 2>&1; then
-                # Execute the downloaded script
-                if bash "$temp_script" 2>&1; then
-                    rm -f "$temp_script"
-                    export PATH="$HOME/.cargo/bin:$PATH"
-                    # Verify uv installation
-                    if command -v uv &> /dev/null; then
-                        print_message "$GREEN" "✓ uv installed successfully"
-                        return 0
-                    else
-                        print_message "$YELLOW" "  uv installation completed but not found in PATH"
-                        print_message "$YELLOW" "  Continuing with pip..."
-                        return 1
-                    fi
-                else
-                    rm -f "$temp_script"
-                    print_message "$YELLOW" "  uv installation failed, continuing with pip..."
-                    return 1
-                fi
-            else
-                print_message "$YELLOW" "  Failed to download uv installer, continuing with pip..."
-                return 1
-            fi
-        fi
-        return 1
-    fi
-}
-
-# Install Python dependencies
-install_dependencies() {
-    print_message "$YELLOW" "Installing Python dependencies..."
-
-    if [ ! -f "pyproject.toml" ]; then
-        print_message "$RED" "✗ pyproject.toml not found"
-        print_message "$YELLOW" "  Make sure you're running the installer from the project root"
-        exit 1
-    fi
-
-    # Check if pip is available
-    if ! python3 -m pip --version &> /dev/null; then
-        print_message "$YELLOW" "  pip not found, installing..."
-
-        local pkg_manager
-        pkg_manager=$(get_package_manager)
-
-        case "$pkg_manager" in
-            apt-get)
-                run_apt_update
-                apt-get install -y python3-pip python3-venv python3-dev build-essential
-                ;;
-            dnf)
-                dnf install -y python3-pip python3-devel gcc
-                ;;
-            yum)
-                yum install -y python3-pip python3-devel gcc
-                ;;
-            *)
-                print_message "$RED" "✗ Cannot install pip automatically"
-                print_message "$YELLOW" "  Please install python3-pip manually and run the installer again"
-                exit 1
-                ;;
+      step "Choose a profile"
+      i=1
+      for d in "${names[@]}"; do
+        printf '  %s%d)%s %s%-10s%s %s\n' "$C_BLUE" "$i" "$C_RESET" "$C_BOLD" "$d" "$C_RESET" \
+          "$(conf_get "$PROFILES_DIR/$d/profile.conf" description)"
+        i=$((i + 1))
+      done
+      while :; do
+        read -r -p "    Select [1-${#names[@]}] (default 1): " choice
+        choice="${choice:-1}"
+        case "$choice" in
+          *[!0-9]*) ;;
+          *) if [ "$choice" -ge 1 ] && [ "$choice" -le ${#names[@]} ]; then
+               PROFILE="${names[$((choice - 1))]}"; break
+             fi ;;
         esac
-
-        # Verify pip installation
-        if ! python3 -m pip --version &> /dev/null; then
-            print_message "$RED" "✗ pip installation failed"
-            exit 1
-        fi
-
-        print_message "$GREEN" "✓ pip installed successfully"
+        warn "enter a number between 1 and ${#names[@]}"
+      done
     fi
+  fi
+  [ -f "$PROFILES_DIR/$PROFILE/profile.conf" ] || {
+    echo "Available profiles:"; list_profiles; die "unknown profile: $PROFILE"; }
+}
 
-    # Upgrade pip first
-    print_message "$BLUE" "  Upgrading pip..."
-    if python3 -m pip install --upgrade pip setuptools wheel 2>&1 | tee /tmp/pip-upgrade.log | grep -i "error"; then
-        print_message "$YELLOW" "  Warning: pip upgrade had errors, check /tmp/pip-upgrade.log"
+choose_font_size() {
+  if [ -z "$FONT_SIZE" ]; then
+    if [ -t 0 ] && [ "$ASSUME_YES" -eq 0 ]; then
+      read -r -p "    Font size (default 16): " FONT_SIZE
+    fi
+    FONT_SIZE="${FONT_SIZE:-16}"
+  fi
+  case "$FONT_SIZE" in *[!0-9]*|"") die "font size must be a number" ;; esac
+  [ "$FONT_SIZE" -ge 10 ] && [ "$FONT_SIZE" -le 32 ] || die "font size must be 10–32"
+}
+
+brew_has() { command -v brew >/dev/null 2>&1 && brew list "$@" >/dev/null 2>&1; }
+
+# prereqs — one "label|kind|brew package" line per thing devterm needs
+prereqs() {
+  if want iterm; then echo "iTerm2|cask|iterm2"; fi
+  echo "JetBrains Mono Nerd Font|cask|font-jetbrains-mono-nerd-font"
+  echo "Starship prompt|formula|starship"
+  if [ "$WITH_EZA" -eq 1 ]; then echo "eza (ls with icons)|formula|eza"; fi
+}
+
+# prereq_present KIND PKG — also detects things installed without Homebrew
+prereq_present() {
+  case "$2" in
+    iterm2) [ -d /Applications/iTerm.app ] || [ -d "$HOME/Applications/iTerm.app" ] ;;
+    font-jetbrains-mono-nerd-font)
+      brew_has --cask "$2" \
+        || compgen -G "$HOME/Library/Fonts/JetBrainsMonoNerdFont*" >/dev/null \
+        || compgen -G "/Library/Fonts/JetBrainsMonoNerdFont*" >/dev/null ;;
+    *) command -v "$2" >/dev/null 2>&1 || brew_has "--$1" "$2" ;;
+  esac
+}
+
+pending() { printf '    %s○%s %s\n' "$C_YELLOW" "$C_RESET" "$*"; }
+
+install_brew() {
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  if [ -x /opt/homebrew/bin/brew ]; then eval "$(/opt/homebrew/bin/brew shellenv)"
+  elif [ -x /usr/local/bin/brew ]; then eval "$(/usr/local/bin/brew shellenv)"; fi
+  command -v brew >/dev/null 2>&1 || die "Homebrew install failed — see https://brew.sh"
+}
+
+install_deps() {
+  step "Prerequisites"
+  local label kind pkg need_brew=0 missing=() cmds=()
+  while IFS='|' read -r label kind pkg; do
+    if prereq_present "$kind" "$pkg"; then
+      ok "$label"
     else
-        print_message "$GREEN" "  ✓ pip upgraded successfully"
+      pending "$label ${C_DIM}— not installed${C_RESET}"
+      missing+=("$label")
+      if [ "$kind" = cask ]; then cmds+=("brew install --cask $pkg"); else cmds+=("brew install $pkg"); fi
     fi
+  done <<EOF_PREREQS
+$(prereqs)
+EOF_PREREQS
 
-    # Try uv first, fall back to pip
-    if command -v uv &> /dev/null; then
-        print_message "$BLUE" "  Using uv for installation..."
-        if uv pip install -e . --system 2>&1; then
-            print_message "$GREEN" "✓ Dependencies installed with uv"
-        else
-            print_message "$YELLOW" "  uv installation failed, falling back to pip..."
-            if python3 -m pip install -e . 2>&1; then
-                print_message "$GREEN" "✓ Dependencies installed with pip"
-            else
-                print_message "$RED" "✗ Failed to install dependencies"
-                print_message "$YELLOW" "  Trying to install from requirements.txt..."
-                if [ -f "requirements.txt" ]; then
-                    if python3 -m pip install -r requirements.txt 2>&1; then
-                        print_message "$GREEN" "✓ Core dependencies installed"
-                    else
-                        print_message "$RED" "✗ Failed to install dependencies"
-                        print_message "$YELLOW" "  Try manually: python3 -m pip install -r requirements.txt"
-                        exit 1
-                    fi
-                else
-                    print_message "$RED" "✗ requirements.txt not found"
-                    exit 1
-                fi
-            fi
-        fi
-    else
-        print_message "$BLUE" "  Using pip for installation..."
-        if python3 -m pip install -e . 2>&1; then
-            print_message "$GREEN" "✓ Dependencies installed successfully"
-        else
-            print_message "$YELLOW" "  Installation with -e failed, trying requirements.txt..."
-            if [ -f "requirements.txt" ]; then
-                if python3 -m pip install -r requirements.txt 2>&1; then
-                    print_message "$GREEN" "✓ Core dependencies installed"
-                else
-                    print_message "$RED" "✗ Failed to install dependencies"
-                    print_message "$YELLOW" "  Try manually: python3 -m pip install -r requirements.txt"
-                    exit 1
-                fi
-            else
-                print_message "$RED" "✗ Failed to install dependencies and requirements.txt not found"
-                exit 1
-            fi
-        fi
-    fi
+  if [ ${#missing[@]} -eq 0 ]; then
+    info "everything is already installed"
+    return 0
+  fi
+  if ! command -v brew >/dev/null 2>&1; then
+    need_brew=1
+    pending "Homebrew ${C_DIM}— not installed (needed to install the above)${C_RESET}"
+  fi
 
-    # Verify critical dependencies
-    print_message "$BLUE" "  Verifying dependencies..."
-    local missing_deps=()
+  echo
+  info "To install:"
+  [ "$need_brew" -eq 0 ] || info "  Homebrew  (https://brew.sh)"
+  for pkg in "${cmds[@]}"; do info "  $pkg"; done
 
-    for dep in psutil requests yaml; do
-        if ! python3 -c "import $dep" 2>/dev/null; then
-            missing_deps+=("$dep")
-        fi
-    done
+  if [ "$SKIP_BREW" -eq 1 ]; then
+    warn "--skip-brew: install the above yourself, then open a new tab"
+    return 0
+  fi
+  if [ "$DRY_RUN" -eq 1 ]; then
+    return 0
+  fi
+  confirm "Install ${#missing[@]} missing item(s) now?" \
+    || die "prerequisites are required (or rerun with --skip-brew to install them yourself)"
 
-    if [ ${#missing_deps[@]} -gt 0 ]; then
-        print_message "$RED" "✗ Missing critical dependencies: ${missing_deps[*]}"
-        print_message "$YELLOW" "  Try: python3 -m pip install psutil requests PyYAML"
-        exit 1
-    fi
-
-    print_message "$GREEN" "✓ All dependencies verified"
+  [ "$need_brew" -eq 0 ] || install_brew
+  for pkg in "${cmds[@]}"; do
+    # word-splitting is intended: "brew install --cask name"
+    # shellcheck disable=SC2086
+    run $pkg
+  done
+  ok "prerequisites installed"
 }
 
-# Copy files to installation directory
-install_files() {
-    print_message "$YELLOW" "Installing DevOps Toolkit files..."
-
-    # Create installation directory
-    if ! mkdir -p "$INSTALL_DIR"; then
-        print_message "$RED" "✗ Failed to create installation directory: $INSTALL_DIR"
-        print_message "$YELLOW" "  Check permissions or try with sudo"
-        exit 1
-    fi
-
-    # Copy application
-    if [ -d "app" ]; then
-        if ! cp -r app "$INSTALL_DIR/"; then
-            print_message "$RED" "✗ Failed to copy app directory"
-            exit 1
-        fi
-
-        if [ -f "pyproject.toml" ]; then
-            cp pyproject.toml "$INSTALL_DIR/" 2>/dev/null || true
-        else
-            print_message "$YELLOW" "  Warning: pyproject.toml not found"
-        fi
-
-        print_message "$GREEN" "✓ Files copied to $INSTALL_DIR"
-    else
-        print_message "$RED" "✗ app directory not found"
-        print_message "$YELLOW" "  Make sure you're running the installer from the project root"
-        exit 1
-    fi
-
-    # Create symbolic link for CLI
-    # First, verify the CLI module exists
-    if [ ! -f "app/cli.py" ]; then
-        print_message "$RED" "✗ app/cli.py not found"
-        print_message "$YELLOW" "  The CLI module is missing from the installation"
-        exit 1
-    fi
-
-    if ! cat > "$BIN_LINK" << 'EOF'
-#!/bin/bash
-# DevOps Toolkit CLI wrapper
-cd /opt/devops_toolkit || exit 1
-
-# Check if running as root for certain operations
-if [[ "$1" == "patch" ]] || [[ "$1" == "service" ]]; then
-    if [[ $EUID -ne 0 ]]; then
-        echo "Error: '$1' command requires root privileges"
-        echo "Please run: sudo devops-toolkit $*"
-        exit 1
-    fi
-fi
-
-# Execute the CLI
-exec python3 -m app.cli "$@"
-EOF
-    then
-        print_message "$RED" "✗ Failed to create CLI script"
-        exit 1
-    fi
-
-    if ! chmod +x "$BIN_LINK"; then
-        print_message "$RED" "✗ Failed to make CLI script executable"
-        exit 1
-    fi
-
-    # Verify the CLI works
-    if ! "$BIN_LINK" --help &> /dev/null; then
-        print_message "$YELLOW" "  Warning: CLI verification failed, but installation will continue"
-        print_message "$YELLOW" "  You may need to check the Python module structure"
-    fi
-
-    print_message "$GREEN" "✓ Created command: devops-toolkit"
+check_guid_conflict() {
+  local guid="$1"
+  command -v defaults >/dev/null 2>&1 || return 0
+  # capture first: with pipefail, `defaults | grep -q` can fail on SIGPIPE after a match
+  local bookmarks
+  bookmarks="$(defaults read com.googlecode.iterm2 "New Bookmarks" 2>/dev/null || true)"
+  if printf '%s' "$bookmarks" | grep -qi "$guid"; then
+    warn "iTerm2 has a regular (imported) profile with the same GUID as this one."
+    warn "Delete it in iTerm2 → Settings → Profiles, or iTerm will report a Dynamic Profiles error."
+  fi
 }
 
-# Setup configuration
-setup_config() {
-    print_message "$YELLOW" "Setting up configuration..."
-
-    # Create config directory
-    if ! mkdir -p "$CONFIG_DIR"; then
-        print_message "$RED" "✗ Failed to create config directory: $CONFIG_DIR"
-        print_message "$YELLOW" "  Check permissions or try with sudo"
-        exit 1
-    fi
-
-    # Copy example config if doesn't exist
-    if [ ! -f "$CONFIG_FILE" ]; then
-        if [ -f "config.yaml.example" ]; then
-            if ! cp config.yaml.example "$CONFIG_FILE"; then
-                print_message "$RED" "✗ Failed to copy configuration file"
-                exit 1
-            fi
-            print_message "$GREEN" "✓ Configuration created at $CONFIG_FILE"
-        else
-            print_message "$YELLOW" "  Warning: config.yaml.example not found"
-            print_message "$YELLOW" "  You'll need to create $CONFIG_FILE manually"
-        fi
-    else
-        print_message "$YELLOW" "  Configuration already exists at $CONFIG_FILE"
-    fi
-
-    # Interactive Slack configuration
-    if [ -f "$CONFIG_FILE" ]; then
-        echo ""
-        print_message "$BLUE" "═══ Slack Configuration ═══"
-        print_message "$YELLOW" "  Get your webhook from: https://api.slack.com/messaging/webhooks"
-
-        # Non-interactive mode check
-        if [ -n "$NON_INTERACTIVE" ]; then
-            print_message "$YELLOW" "  Skipping Slack configuration (non-interactive mode)"
-            print_message "$YELLOW" "  Edit $CONFIG_FILE to add webhook later"
-        else
-            read -t "$INTERACTIVE_TIMEOUT" -p "  Enter Slack webhook URL (or press Enter to skip): " WEBHOOK_URL || {
-                print_message "$YELLOW" "  No response, skipping Slack configuration"
-                WEBHOOK_URL=""
-            }
-
-            if [ -n "$WEBHOOK_URL" ]; then
-                # Sanitize webhook URL for sed
-                local sanitized_url
-                sanitized_url=$(sanitize_for_sed "$WEBHOOK_URL")
-
-                # Use Python for safer config update (avoids sed escaping issues)
-                if command -v python3 &> /dev/null; then
-                    python3 << EOF 2>/dev/null
-import re
-try:
-    with open('$CONFIG_FILE', 'r') as f:
-        content = f.read()
-    content = re.sub(r"webhook_url:.*", "webhook_url: '$WEBHOOK_URL'", content)
-    with open('$CONFIG_FILE', 'w') as f:
-        f.write(content)
-    print("success")
-except Exception:
-    print("failed")
-EOF
-                    if [ $? -eq 0 ]; then
-                        print_message "$GREEN" "✓ Slack webhook configured"
-                    else
-                        print_message "$YELLOW" "  Could not auto-configure webhook. Please edit $CONFIG_FILE manually"
-                    fi
-                else
-                    # Fallback to sed with sanitized input
-                    if [[ "$OSTYPE" == "darwin"* ]]; then
-                        sed -i '' "s|webhook_url:.*|webhook_url: '$sanitized_url'|g" "$CONFIG_FILE" 2>/dev/null || \
-                        print_message "$YELLOW" "  Could not auto-configure webhook. Please edit $CONFIG_FILE manually"
-                    else
-                        sed -i "s|webhook_url:.*|webhook_url: '$sanitized_url'|g" "$CONFIG_FILE" 2>/dev/null || \
-                        print_message "$YELLOW" "  Could not auto-configure webhook. Please edit $CONFIG_FILE manually"
-                    fi
-                    print_message "$GREEN" "✓ Slack webhook configured"
-                fi
-            else
-                print_message "$YELLOW" "  Skipped. Edit $CONFIG_FILE to add webhook later"
-            fi
-        fi
-    fi
+install_iterm_profile() {
+  step "iTerm2 profile"
+  local src="$PROFILES_DIR/$PROFILE/iterm.json"
+  local dest="$DYN_DIR/devterm-$PROFILE.json"
+  check_guid_conflict "$GUID"
+  run mkdir -p "$DYN_DIR"
+  if [ "$DRY_RUN" -eq 1 ]; then
+    run "write $(pretty_path "$dest") (font size $FONT_SIZE)"
+  else
+    sed -E "s/(\"(Normal|Non Ascii) Font\": \"[^ \"]+) [0-9]+\"/\1 $FONT_SIZE\"/" "$src" > "$dest.tmp"
+    mv "$dest.tmp" "$dest"
+  fi
+  ok "installed \"devterm · $DISPLAY_NAME\" (font size $FONT_SIZE)"
 }
 
-# Setup logging
-setup_logging() {
-    print_message "$YELLOW" "Setting up logging..."
-
-    # Create log directory if it doesn't exist
-    LOG_DIR=$(dirname "$LOG_FILE")
-    if ! mkdir -p "$LOG_DIR"; then
-        print_message "$RED" "✗ Failed to create log directory: $LOG_DIR"
-        exit 1
-    fi
-
-    if ! touch "$LOG_FILE"; then
-        print_message "$RED" "✗ Failed to create log file: $LOG_FILE"
-        print_message "$YELLOW" "  Check permissions or try with sudo"
-        exit 1
-    fi
-
-    if ! chmod 644 "$LOG_FILE"; then
-        print_message "$YELLOW" "  Warning: Could not set log file permissions"
-    fi
-
-    print_message "$GREEN" "✓ Log file: $LOG_FILE"
+install_terminal_profile() {
+  step "Terminal.app profile"
+  local name="devterm · $DISPLAY_NAME" tmp i major found=0
+  major="$(sw_vers -productVersion 2>/dev/null | cut -d. -f1)"
+  if [ -n "$major" ] && [ "$major" -lt 26 ]; then
+    warn "Terminal.app before macOS 26 has no 24-bit color, so prompt colors will be off."
+    warn "iTerm2 is recommended on this macOS version."
+  fi
+  if [ "$DRY_RUN" -eq 1 ]; then
+    run "import \"$name\" into Terminal.app (font size $FONT_SIZE)"
+    return 0
+  fi
+  # Terminal names an imported profile after its file, and re-importing adds a
+  # "<name> 1" duplicate instead of replacing it — so remove the old one first.
+  if [ "$(defaults read com.apple.Terminal "Default Window Settings" 2>/dev/null || true)" = "$name" ]; then
+    SET_TERMINAL_DEFAULT=1
+  fi
+  terminal_remove_profiles "$name" >/dev/null \
+    || { warn "couldn't control Terminal.app — allow it in System Settings → Privacy & Security → Automation"; return 0; }
+  tmp="$(mktemp -d)"
+  cp "$PROFILES_DIR/$PROFILE/terminal.terminal" "$tmp/$name.terminal"
+  open -a Terminal "$tmp/$name.terminal"   # imports it, and opens a window using it
+  for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+    osascript -e "tell application \"Terminal\" to exists settings set \"$name\"" 2>/dev/null \
+      | grep -q true && { found=1; break; }
+    sleep 0.5
+  done
+  if [ "$found" -eq 0 ]; then
+    warn "Terminal.app didn't pick up the profile; open $tmp/$name.terminal by hand"
+    return 0
+  fi
+  rm -f "$tmp/$name.terminal"; rmdir "$tmp"
+  osascript -e "tell application \"Terminal\" to set font size of settings set \"$name\" to $FONT_SIZE"
+  ok "installed \"$name\" (font size $FONT_SIZE)"
 }
 
-# Setup cron job
-setup_cron() {
-    echo ""
-    print_message "$BLUE" "═══ Cron Job Setup ═══"
-
-    # Non-interactive mode check
-    if [ -n "$NON_INTERACTIVE" ] || [ -n "$SKIP_CRON" ]; then
-        print_message "$YELLOW" "  Skipping cron setup (non-interactive mode)"
-        return
-    fi
-
-    read -t "$INTERACTIVE_TIMEOUT" -p "  Setup automatic execution via cron? (y/n): " SETUP_CRON || {
-        print_message "$YELLOW" "  No response, skipping cron setup"
-        return
-    }
-
-    if [[ "$SETUP_CRON" =~ ^[Yy]$ ]]; then
-        echo ""
-        echo "  Select schedule:"
-        echo "    1) Daily at 2:00 AM"
-        echo "    2) Every 6 hours"
-        echo "    3) Every 12 hours"
-        echo "    4) Weekly (Sunday 2:00 AM)"
-        echo "    5) Custom"
-        echo "    6) Skip"
-
-        read -p "  Choice (1-6): " CRON_CHOICE
-
-        case $CRON_CHOICE in
-            1) CRON_SCHEDULE="0 2 * * *" ;;
-            2) CRON_SCHEDULE="0 */6 * * *" ;;
-            3) CRON_SCHEDULE="0 */12 * * *" ;;
-            4) CRON_SCHEDULE="0 2 * * 0" ;;
-            5)
-                read -p "  Enter cron schedule (e.g., '0 2 * * *'): " CRON_SCHEDULE
-                # Validate cron schedule
-                if ! validate_cron_schedule "$CRON_SCHEDULE"; then
-                    print_message "$RED" "✗ Invalid cron schedule format"
-                    print_message "$YELLOW" "  Expected format: minute hour day month weekday"
-                    print_message "$YELLOW" "  Example: 0 2 * * * (daily at 2 AM)"
-                    return
-                fi
-                ;;
-            *) print_message "$YELLOW" "  Skipped cron setup"; return ;;
-        esac
-
-        CRON_ENTRY="$CRON_SCHEDULE $BIN_LINK run >> $LOG_FILE 2>&1"
-
-        # Use temporary file to avoid race condition
-        local temp_cron="/tmp/crontab-$$.tmp"
-
-        # Get current crontab
-        if crontab -l 2>/dev/null > "$temp_cron"; then
-            # Remove existing devops-toolkit entries
-            grep -v "devops-toolkit" "$temp_cron" > "${temp_cron}.new" 2>/dev/null || touch "${temp_cron}.new"
-            # Add new entry
-            echo "$CRON_ENTRY" >> "${temp_cron}.new"
-            # Install new crontab
-            if crontab "${temp_cron}.new" 2>/dev/null; then
-                print_message "$GREEN" "✓ Cron job configured: $CRON_SCHEDULE"
-            else
-                print_message "$RED" "✗ Failed to install crontab"
-            fi
-        else
-            # No existing crontab, create new one
-            echo "$CRON_ENTRY" > "$temp_cron"
-            if crontab "$temp_cron" 2>/dev/null; then
-                print_message "$GREEN" "✓ Cron job configured: $CRON_SCHEDULE"
-            else
-                print_message "$RED" "✗ Failed to install crontab"
-            fi
-        fi
-
-        # Cleanup
-        rm -f "$temp_cron" "${temp_cron}.new"
-    fi
+install_starship_config() {
+  step "Starship prompt"
+  local src="$PROFILES_DIR/$PROFILE/starship.toml"
+  if [ -f "$STARSHIP_CFG" ] && ! head -n 1 "$STARSHIP_CFG" | grep -q '^# devterm'; then
+    backup_file "$STARSHIP_CFG" "$BACKUP_DIR"
+  fi
+  run mkdir -p "$(dirname "$STARSHIP_CFG")"
+  run cp "$src" "$STARSHIP_CFG"
+  ok "wrote $(pretty_path "$STARSHIP_CFG")"
 }
 
-# Run test
-run_test() {
-    echo ""
-    print_message "$BLUE" "═══ Testing Installation ═══"
+install_zsh_block() {
+  step "Shell ($(pretty_path "$ZSHRC"))"
+  [ -f "$ZSHRC" ] || run touch "$ZSHRC"
+  if [ -f "$ZSHRC" ] && ! grep -qF "$MARK_START" "$ZSHRC"; then
+    backup_file "$ZSHRC" "$BACKUP_DIR"
+  fi
+  remove_zsh_block "$ZSHRC"
 
-    # Non-interactive mode check
-    if [ -n "$NON_INTERACTIVE" ] || [ -n "$SKIP_TEST" ]; then
-        print_message "$YELLOW" "  Skipping test (non-interactive mode)"
-        return
+  if [ -f "$ZSHRC" ]; then
+    if grep -Eq '^[^#]*starship init' "$ZSHRC"; then
+      warn "found another 'starship init' in your .zshrc — remove it to avoid double init"
     fi
-
-    read -t "$INTERACTIVE_TIMEOUT" -p "  Run test now? (y/n): " RUN_TEST || {
-        print_message "$YELLOW" "  No response, skipping test"
-        return
-    }
-
-    if [[ "$RUN_TEST" =~ ^[Yy]$ ]]; then
-        echo ""
-        if devops-toolkit test 2>&1; then
-            print_message "$GREEN" "✓ Test completed successfully"
-        else
-            print_message "$YELLOW" "  Warning: Test had issues, but installation is complete"
-            print_message "$YELLOW" "  Check the configuration and try: devops-toolkit test"
-        fi
+    if grep -Eq '^[[:space:]]*ZSH_THEME="[^"]+"' "$ZSHRC"; then
+      warn "Oh My Zsh theme detected — set ZSH_THEME=\"\" so Starship controls the prompt"
     fi
+  fi
+
+  local block
+  block="$MARK_START
+# Managed by devterm — changes inside this block are overwritten on reinstall.
+if command -v starship >/dev/null 2>&1; then
+  eval \"\$(starship init zsh)\"
+fi"
+  if [ "$WITH_EZA" -eq 1 ]; then
+    block="$block
+if command -v eza >/dev/null 2>&1; then
+  alias ls='eza --icons --group-directories-first'
+  alias ll='eza -l --icons --git --group-directories-first'
+  alias la='eza -la --icons --git --group-directories-first'
+  alias lt='eza --tree --level=2 --icons'
+fi"
+  fi
+  block="$block
+$MARK_END"
+
+  if [ "$DRY_RUN" -eq 1 ]; then
+    run "append devterm block to $(pretty_path "$ZSHRC")"
+  else
+    printf '\n%s\n' "$block" >> "$ZSHRC"
+  fi
+  ok "added Starship init$( [ "$WITH_EZA" -eq 1 ] && echo " and eza aliases")"
 }
 
-# Print completion message
-print_completion() {
-    echo ""
-    print_message "$GREEN" "╔════════════════════════════════════════╗"
-    print_message "$GREEN" "║   Installation Complete! 🎉            ║"
-    print_message "$GREEN" "╚════════════════════════════════════════╝"
-    echo ""
-    print_message "$BLUE" "Next Steps:"
-    print_message "$YELLOW" "  1. Edit config:    sudo nano $CONFIG_FILE"
-    print_message "$YELLOW" "  2. Run test:       devops-toolkit test"
-    print_message "$YELLOW" "  3. Run full check: devops-toolkit run"
-    echo ""
-    print_message "$BLUE" "Available Commands:"
-    print_message "$YELLOW" "  devops-toolkit run       - Run all modules"
-    print_message "$YELLOW" "  devops-toolkit patch     - Patch management"
-    print_message "$YELLOW" "  devops-toolkit monitor   - System monitoring"
-    print_message "$YELLOW" "  devops-toolkit audit     - Security audits"
-    print_message "$YELLOW" "  devops-toolkit doctor    - Readiness diagnostics"
-    print_message "$YELLOW" "  devops-toolkit test      - Test mode"
-    print_message "$YELLOW" "  devops-toolkit --help    - Show help"
-    echo ""
-    print_message "$BLUE" "Documentation:"
-    print_message "$YELLOW" "  README: https://github.com/sameeralam3127/devops-toolkit"
-    echo ""
+set_default_profile() {
+  [ "$SET_DEFAULT" -eq 1 ] || [ "$SET_TERMINAL_DEFAULT" -eq 1 ] || return 0
+  step "Default profile"
+  if want terminal; then
+    run osascript -e "tell application \"Terminal\"" \
+      -e "set default settings to settings set \"devterm · $DISPLAY_NAME\"" \
+      -e "set startup settings to settings set \"devterm · $DISPLAY_NAME\"" -e "end tell"
+    ok "set \"devterm · $DISPLAY_NAME\" as Terminal.app's default profile"
+  fi
+  if [ "$SET_DEFAULT" -eq 0 ] || ! want iterm; then
+    return 0
+  elif iterm_running; then
+    warn "iTerm2 is running and would overwrite this change on quit."
+    warn "Quit iTerm2, run this from Terminal.app with --set-default, or use"
+    warn "Settings → Profiles → Other Actions → Set as Default."
+    return 0
+  fi
+  run defaults write com.googlecode.iterm2 "Default Bookmark Guid" -string "$GUID"
+  ok "set \"devterm · $DISPLAY_NAME\" as iTerm2's default profile"
 }
 
-# Main installation
+save_state() {
+  run mkdir -p "$STATE_DIR"
+  if [ "$DRY_RUN" -eq 0 ]; then
+    echo "$PROFILE" > "$STATE_DIR/current"
+    [ -d "$BACKUP_DIR" ] && echo "$BACKUP_DIR" > "$STATE_DIR/last_backup"
+  fi
+  return 0
+}
+
 main() {
-    print_header
-    check_root
-    detect_os
+  parse_args "$@"
+  preflight
+  printf '%sdevterm%s — developer terminal setup for macOS\n' "$C_BOLD" "$C_RESET"
+  [ "$DRY_RUN" -eq 1 ] && printf '%s(dry run: nothing will be changed)%s\n' "$C_YELLOW" "$C_RESET"
 
-    if ! check_python; then
-        install_python
-    fi
+  choose_profile
+  choose_font_size
+  GUID="$(conf_get "$PROFILES_DIR/$PROFILE/profile.conf" guid)"
+  DISPLAY_NAME="$(conf_get "$PROFILES_DIR/$PROFILE/profile.conf" display)"
+  BACKUP_DIR="$STATE_DIR/backups/$(date +%Y%m%d-%H%M%S)"
 
-    check_uv
-    install_dependencies
-    install_files
-    setup_config
-    setup_logging
-    setup_cron
-    run_test
-    print_completion
+  SET_TERMINAL_DEFAULT=0
+
+  install_deps
+  if want iterm; then install_iterm_profile; fi
+  if want terminal; then install_terminal_profile; fi
+  install_starship_config
+  install_zsh_block
+  set_default_profile
+  save_state
+
+  step "Done"
+  info "Profile: ${C_BOLD}devterm · $DISPLAY_NAME${C_RESET}  (font size $FONT_SIZE)"
+  info "Next:"
+  if want iterm; then
+    info "  iTerm2:   Settings → Profiles → select \"devterm · $DISPLAY_NAME\""
+    [ "$SET_DEFAULT" -eq 1 ] || info "            → Other Actions → Set as Default"
+    info "            Optional: Settings → Appearance → General → Theme: Minimal"
+  fi
+  if want terminal && [ "$SET_DEFAULT" -eq 0 ]; then
+    info "  Terminal: Settings → Profiles → select \"devterm · $DISPLAY_NAME\" → Default"
+  fi
+  info "  Then open a new tab (or run: exec zsh)"
 }
 
-# Run main installation
-main
-
-# Made with Bob
+main "$@"

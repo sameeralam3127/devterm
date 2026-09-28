@@ -4,38 +4,24 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
 
 jobs:
-  test:
-    name: Python ${{ matrix.python-version }}
+  lint:
     runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - name: ShellCheck
+        run: shellcheck -x install.sh uninstall.sh lib/common.sh tools/record-demo.sh
+      - name: Generated profiles are up to date
+        run: python3 tools/build.py --check
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: pip
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e ".[dev]"
-
-      - name: Lint
-        run: ruff check app tests
-
-      - name: Test
-        run: pytest
-
-      - name: Doctor
-        run: devops-toolkit --config config.yaml.example doctor --format json
+  macos-dry-run:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install (dry run, all apps)
+        run: ./install.sh --profile midnight --dry-run --yes
+      - name: Install (dry run, Terminal.app only)
+        run: ./install.sh --profile daylight --app terminal --dry-run --yes
+      - name: Uninstall (dry run)
+        run: ./uninstall.sh --dry-run --yes
