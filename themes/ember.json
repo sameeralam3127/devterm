@@ -1,0 +1,10 @@
+{
+  "name": "ember",
+  "display": "Ember",
+  "description": "Warm retro dark theme, easy on the eyes for long sessions",
+  "background": "#1d2021", "foreground": "#ebdbb2",
+  "cursor": "#fe8019", "selection": "#3c3836", "muted": "#7c6f64",
+  "transparency": 0.04, "blur": true,
+  "ansi": ["#282828","#fb4934","#b8bb26","#fabd2f","#83a598","#d3869b","#8ec07c","#d5c4a1",
+           "#665c54","#ff6b5b","#c9d05c","#ffd166","#9cc4d8","#e3a0bd","#a3d9a5","#fbf1c7"]
+}

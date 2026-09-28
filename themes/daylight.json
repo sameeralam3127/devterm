@@ -1,0 +1,10 @@
+{
+  "name": "daylight",
+  "display": "Daylight",
+  "description": "Clean high-contrast light theme for bright rooms and screen sharing",
+  "background": "#f7f7f5", "foreground": "#2e3440",
+  "cursor": "#2f6fd6", "selection": "#cfe0fa", "muted": "#8a8f98",
+  "transparency": 0.0, "blur": false,
+  "ansi": ["#3b4252","#c8323c","#3f8a3a","#a36a00","#2f6fd6","#8e44ad","#1b8a9a","#9aa0a6",
+           "#6b7280","#e04b54","#4fa14a","#bf8200","#4a86e8","#a55cc2","#2aa6b8","#4b5563"]
+}

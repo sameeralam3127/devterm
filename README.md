@@ -1,723 +1,210 @@
-# DevOps Toolkit
+# devterm
 
-A production-grade Linux system health, monitoring, and maintenance toolkit for Ubuntu and RHEL-based systems.
+Opinionated **Starship** setup for **iTerm2** and **macOS Terminal.app**, for
+developers and SREs. Clone it, pick a theme, run one script — and get a terminal
+that shows you what matters: git state, Kubernetes context, cloud profile,
+language versions, and (in iTerm2) log errors highlighted as they scroll by.
 
-DevOps Toolkit is a comprehensive Python-based automation tool designed for system administrators and DevOps engineers. It provides automated system monitoring, patch management, security auditing, and Slack notifications.
+![devterm demo — Midnight theme](docs/demo-midnight.gif)
 
-### Key Features
+## Prerequisites
 
-- **Patch Management**: Automated OS updates for Ubuntu and RHEL systems with reboot detection
-- **System Monitoring**: CPU, memory, disk usage, and uptime tracking with configurable thresholds
-- **Network Monitoring**: Port availability and process monitoring
-- **Security Auditing**: File permissions, user/group audits, and cron job validation
-- **DevOps Doctor**: One-command readiness score with CI-friendly JSON output and remediation guidance
-- **Health Reports**: Combined doctor, monitoring, and inventory reports in text or JSON
-- **Slack Integration**: Real-time notifications with severity levels (INFO, WARNING, CRITICAL)
-- **Modular Architecture**: Run individual modules or full system checks
-- **Cron Integration**: Automated scheduled execution
-- **Test Mode**: Dry-run capabilities for safe testing
+- macOS with `zsh` (the default shell) and `git`
+- [Homebrew](https://brew.sh) — the installer offers to install it if it's missing
 
-## Requirements
+Everything else is installed for you. The installer first lists what's already
+there and what's missing, then asks once before installing anything:
 
-- **Operating Systems**: Ubuntu 18.04+, Debian 10+, RHEL 7+, CentOS 7+, Rocky Linux, AlmaLinux
-- **Python**: 3.8 or higher
-- **Privileges**: Root/sudo access for system operations
-- **Dependencies**: psutil, requests, PyYAML (auto-installed)
+```
+==> Prerequisites
+    ✓ iTerm2
+    ✓ JetBrains Mono Nerd Font
+    ○ Starship prompt — not installed
+    ○ eza (ls with icons) — not installed
 
-## Quick Start
+    To install:
+      brew install starship
+      brew install eza
+    Install 2 missing item(s) now? [Y/n]
+```
 
-Use this path when you want to try the toolkit safely before scheduling it on a server.
+| Prerequisite             | Installed with                                      | Needed for                                    |
+| ------------------------ | --------------------------------------------------- | --------------------------------------------- |
+| iTerm2                   | `brew install --cask iterm2`                        | `--app iterm` or `all` only                   |
+| JetBrains Mono Nerd Font | `brew install --cask font-jetbrains-mono-nerd-font` | icons in the prompt                           |
+| Starship                 | `brew install starship`                             | the prompt                                    |
+| eza _(optional)_         | `brew install eza`                                  | `ls` with icons — skip it with `--no-eza`     |
+
+Prefer to install them yourself? Run with `--skip-brew`; the installer still prints the list.
+
+## Quick start
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/sameeralam3127/devops-toolkit.git
-cd devops-toolkit
-
-# 2. Install locally in a virtual environment
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e .
-
-# 3. Create a starter config you can edit without sudo
-cp config.yaml.example config.yaml
+git clone https://github.com/sameeralam3127/devterm.git
+cd devterm
+./install.sh                    # iTerm2 + Terminal.app
+./install.sh --app terminal     # only macOS Terminal.app (doesn't install iTerm2)
+./install.sh --app iterm        # only iTerm2
 ```
 
-For a local trial, edit `config.yaml` and set:
+The installer asks which profile you want and what font size to use, installs
+what's missing, and backs up anything it replaces. Then pick the profile:
 
-```yaml
-slack:
-  enabled: false
-logging:
-  log_file: ./devops_toolkit.log
+- **iTerm2** → Settings → Profiles → **devterm · &lt;Theme&gt;** → Other Actions → **Set as Default**
+  _(optional: Settings → Appearance → General → Theme: Minimal)_
+- **Terminal.app** → Settings → Profiles → **devterm · &lt;Theme&gt;** → **Default**
+
+Or pass `--set-default` to do this for you. Then open a new tab.
+
+## Profiles
+
+| Profile    | Style                                                               | Preview                         |
+| ---------- | ------------------------------------------------------------------- | ------------------------------- |
+| `midnight` | Deep navy dark theme with soft blue/purple accents                  | [demo](docs/demo-midnight.gif)  |
+| `ember`    | Warm retro dark theme, easy on the eyes for long sessions           | [demo](docs/demo-ember.gif)     |
+| `daylight` | Clean high-contrast light theme for bright rooms and screen sharing | [demo](docs/demo-daylight.gif)  |
+
+<details>
+<summary>Show all three previews</summary>
+
+**Midnight**
+
+![Midnight](docs/demo-midnight.gif)
+
+**Ember**
+
+![Ember](docs/demo-ember.gif)
+
+**Daylight**
+
+![Daylight](docs/demo-daylight.gif)
+
+</details>
+
+Every profile shares the same features — only the colors change. You can install
+more than one and switch between them.
+
+## What you get
+
+**iTerm2 profile** (`--app iterm`)
+
+- JetBrains Mono Nerd Font (16pt by default) with ligatures and icons
+- Status bar: current directory, git branch, host, CPU, memory, network, clock
+- Log highlighting: `ERROR`/`FATAL`/`FAILED` in red; `WARN`/`CrashLoopBackOff`/`OOMKilled` in yellow; `Running`/`Ready`/`PASSED` in green
+- Mac-style editing: ⌥←/→ by word, ⌘←/→ to line start/end, ⌥⌫ delete word, ⌘⌫ delete line
+- ⌘-click a path like `app.py:42` to open it in your editor at that line
+- New tabs open in the same directory; unlimited scrollback; shell integration
+
+**Terminal.app profile** (`--app terminal`)
+
+- Same colors, font, font size and line spacing as the iTerm2 profile
+- Option key acts as Meta, so ⌥←/→ jump by word
+- Status bar, log highlighting and ⌘-click to open files are iTerm2-only
+- Needs macOS 26 or later for 24-bit color; on older macOS, use iTerm2
+
+**Starship prompt** — context appears only where it's relevant:
+
+| Module                       | Shown when                                                                                                                                            |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Git branch & status          | inside a git repo                                                                                                                                     |
+| Kubernetes context/namespace | in folders with `Chart.yaml`, `kustomization.yaml`, `k8s/`, `charts/`… (`docker-desktop` shows as a dim `local`; contexts containing `prod` turn red) |
+| AWS profile/region           | `AWS_PROFILE` is set                                                                                                                                  |
+| Terraform workspace          | `.tf` files present                                                                                                                                   |
+| Ansible                      | `ansible.cfg`, `galaxy.yml`, `requirements.yml` present                                                                                               |
+| Python version + venv        | Python project files present, or a venv is active                                                                                                     |
+| Go / Node.js                 | matching project files present                                                                                                                        |
+| Docker context               | `Dockerfile` / compose file present                                                                                                                   |
+| Command duration             | a command took over 2s                                                                                                                                |
+
+**Shell** — adds a managed block to `~/.zshrc` with the Starship init and
+[eza](https://github.com/eza-community/eza) aliases (`ls`, `ll`, `la`, `lt`) with icons and git status.
+
+## Options
+
+```
+./install.sh [options]
+
+  -p, --profile NAME     Theme to install (see --list)
+  -f, --font-size N      Terminal font size, 10–32 (default: 16)
+  -a, --app APP          iterm, terminal (macOS Terminal.app) or all (default: all)
+  -l, --list             List available profiles
+      --set-default      Make the profile the default (for iTerm2, quit it first)
+      --no-eza           Don't install eza or add the ls aliases
+      --skip-brew        Don't install anything with Homebrew
+  -n, --dry-run          Show what would change without changing anything
+  -y, --yes              Don't ask for confirmation
 ```
 
-You can also trim `monitoring.disk.paths`, `monitoring.ports.check_ports`, and `monitoring.processes.watch_processes` to match services that actually exist on your machine.
+Examples:
 
 ```bash
-# 4. Run non-mutating checks first
-devops-toolkit --config ./config.yaml doctor
-devops-toolkit --config ./config.yaml report
-
-# 5. Run monitoring or audit modules when ready
-devops-toolkit --config ./config.yaml monitor
-devops-toolkit --config ./config.yaml audit
+./install.sh --list
+./install.sh -p midnight -f 18
+./install.sh -p daylight --dry-run
+./install.sh -p ember --yes --set-default     # run from Terminal.app with iTerm2 closed
+./install.sh -p midnight --app terminal --set-default
 ```
 
-For production servers, use the installer in the next section. Most maintenance actions require `sudo` because package management, system logs, and protected audit paths are owned by root.
+## What it changes
 
-## Quick Install
+| Path                                                                          | Change                                                                               |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `~/Library/Application Support/iTerm2/DynamicProfiles/devterm-<profile>.json` | iTerm2 dynamic profile (auto-loaded, live-reloaded)                                  |
+| Terminal.app → Settings → Profiles                                            | A **devterm · &lt;Theme&gt;** profile (importing it opens one preview window)        |
+| `~/.config/starship.toml`                                                     | Starship config — your existing one is backed up first                               |
+| `~/.zshrc`                                                                    | One block between `# >>> devterm >>>` and `# <<< devterm <<<` — backed up first      |
+| `~/.devterm/`                                                                 | Backups and install state                                                            |
 
-**One-line installation:**
+Homebrew packages are installed only if missing — see [Prerequisites](#prerequisites).
+
+Re-running the installer is safe: profiles and the shell block are replaced, not duplicated.
+
+## Uninstall
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/sameeralam3127/devops-toolkit/main/install.sh | sudo bash
+./uninstall.sh            # removes profiles and shell block, restores your old starship.toml
+./uninstall.sh --purge    # also deletes ~/.devterm backups
 ```
 
-Or clone and install:
-
-```bash
-git clone https://github.com/sameeralam3127/devops-toolkit.git
-cd devops-toolkit
-sudo bash install.sh
-```
-
-The installer will:
-
-- Check Python 3.8+ installation
-- Install dependencies (with optional uv support)
-- Copy files to `/opt/devops_toolkit`
-- Create configuration at `/etc/devops_toolkit/config.yaml`
-- Setup logging at `/var/log/devops_toolkit.log`
-- Optionally configure cron jobs
-- Create `devops-toolkit` command
-
-### Configuration
-
-Edit the configuration file:
-
-```bash
-sudo vim /etc/devops_toolkit/config.yaml
-```
-
-**Required Configuration:**
-
-- Add your Slack webhook URL, or set `slack.enabled: false` while testing without Slack.
-- Adjust CPU, memory, and disk thresholds for your server.
-- Configure disk paths, processes, and ports that matter for your workload.
-- Confirm `logging.log_file` points to a writable location.
-
-Validate the configuration before running maintenance:
-
-```bash
-devops-toolkit doctor
-devops-toolkit doctor --format json
-```
-
-## Usage
-
-### Command-Line Interface
-
-```bash
-# Run all modules (monitoring, patching, auditing)
-devops-toolkit run
-
-# Run specific modules
-devops-toolkit patch      # Patch management only
-devops-toolkit monitor    # Monitoring only
-devops-toolkit audit      # Auditing only
-devops-toolkit doctor     # Readiness score and actionable diagnostics
-devops-toolkit report     # Combined health report
-
-# Test mode (dry-run, no changes)
-devops-toolkit test
-
-# CI-friendly doctor output
-devops-toolkit doctor --format json --fail-on-warning
-
-# Automation-friendly health report
-devops-toolkit report --format json
-
-# Save a report artifact
-devops-toolkit report --format json --output ./reports/health.json
-
-# Include deeper audit scans in the report
-devops-toolkit report --full-audit
-
-# Dry-run mode
-devops-toolkit --dry-run patch
-
-# Initial setup
-devops-toolkit setup
-
-# Help
-devops-toolkit --help
-```
-
-### Recommended First Runs
-
-Start with read-only commands:
-
-```bash
-devops-toolkit doctor
-devops-toolkit report --format json
-devops-toolkit report --format json --output ./reports/health.json
-devops-toolkit monitor
-```
-
-Then run deeper checks:
-
-```bash
-devops-toolkit report --full-audit
-devops-toolkit audit
-```
-
-Use dry-run mode before patching:
-
-```bash
-devops-toolkit --dry-run patch
-```
-
-When ready to perform full maintenance:
-
-```bash
-sudo devops-toolkit run
-```
-
-### Command Reference
-
-| Command | What it does | Mutates the system? |
-| --- | --- | --- |
-| `devops-toolkit doctor` | Checks readiness, config, OS support, logging, Slack, and package manager setup | No |
-| `devops-toolkit report` | Builds a combined doctor, monitoring, and inventory report | No |
-| `devops-toolkit report --output ./health.json` | Writes the report output to a file for CI artifacts, audit archives, or cron output | No |
-| `devops-toolkit report --full-audit` | Adds file permission, user/group, and cron audit details to the report | No |
-| `devops-toolkit monitor` | Checks disk, CPU, memory, ports, processes, uptime, and listening ports | No |
-| `devops-toolkit audit` | Collects inventory and audits users, files, and cron jobs | No |
-| `devops-toolkit --dry-run patch` | Checks patch status without applying updates | No |
-| `devops-toolkit patch` | Checks and applies OS package updates | Yes |
-| `devops-toolkit run` | Runs patch management, monitoring, and audits according to config | Yes, when patch management is enabled |
-| `devops-toolkit test` | Validates config, tests Slack, and runs dry-run checks | No |
-| `devops-toolkit setup` | Writes a default config file under `/etc/devops_toolkit` | Yes |
-
-## Configuration Reference
-
-### Complete Configuration Example
-
-```yaml
-# Slack Notification Settings
-slack:
-  webhook_url: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
-  enabled: true
-  retry_attempts: 3
-  retry_delay: 2
-
-# Monitoring Configuration
-monitoring:
-  disk:
-    enabled: true
-    threshold_percent: 80
-    paths: [/, /home, /var]
-
-  cpu:
-    enabled: true
-    threshold_percent: 80
-    check_interval: 5
-
-  memory:
-    enabled: true
-    threshold_percent: 80
-
-  ports:
-    enabled: true
-    check_ports: [22, 80, 443, 3306, 5432]
-
-  processes:
-    enabled: true
-    watch_processes: [nginx, apache2, mysql, postgresql, docker]
-
-# Maintenance Settings
-maintenance:
-  patch_management:
-    enabled: true
-    auto_reboot: false
-    reboot_time: "03:00"
-
-  services:
-    restart_retry_count: 3
-    restart_retry_delay: 5
-
-# Audit Settings
-audit:
-  file_permissions:
-    enabled: true
-    scan_paths: [/etc, /var/www, /opt]
-    exclude_paths: [/proc, /sys, /dev, /run]
-
-  user_audit:
-    enabled: true
-
-  cron_audit:
-    enabled: true
-
-# Logging Configuration
-logging:
-  log_file: /var/log/devops_toolkit.log
-  log_level: INFO
-  max_bytes: 10485760 # 10MB
-  backup_count: 5
-```
-
-## Module Details
-
-### 1. Patch Management
-
-**Features:**
-
-- Automatic OS detection (Ubuntu/RHEL)
-- Update checking and application
-- Reboot requirement detection
-- Slack notifications for all outcomes
-
-**Ubuntu/Debian:**
-
-```bash
-apt update && apt upgrade -y
-```
-
-**RHEL/CentOS:**
-
-```bash
-yum update -y  # or dnf update -y
-```
-
-**Reboot Detection:**
-
-- Ubuntu: Checks `/var/run/reboot-required`
-- RHEL: Uses `needs-restarting -r` command
-
-### 2. System Monitoring
-
-**Disk Usage:**
-
-- Monitors configured paths
-- Alerts when usage exceeds threshold
-- Reports total, used, free space in GB
-
-**CPU Usage:**
-
-- Overall and per-core usage
-- Load averages (1, 5, 15 min)
-- Configurable check interval
-
-**Memory Usage:**
-
-- RAM and swap monitoring
-- Available memory tracking
-- Threshold-based alerts
-
-**Uptime:**
-
-- System uptime reporting
-- Boot timestamp tracking
-
-### 3. Network Monitoring
-
-**Port Monitoring:**
-
-- Checks if configured ports are accessible
-- Alerts on closed/unreachable ports
-- Lists all listening ports on system
-
-**Process Monitoring:**
-
-- Verifies critical processes are running
-- Counts process instances
-- Critical alerts for missing processes
-
-### 4. System Auditing
-
-**System Inventory:**
-
-- Hostname, OS version, architecture
-- CPU cores (physical/logical)
-- Total RAM and disk space
-- Network interfaces and IP addresses
-
-**User & Group Audit:**
-
-- Lists all system users with UIDs
-- Lists all groups and members
-- Parses `/etc/passwd` and `/etc/group`
-
-### 5. DevOps Doctor
-
-Run a non-mutating production readiness check before installing, scheduling, or opening a pull request:
-
-```bash
-devops-toolkit doctor
-devops-toolkit doctor --format json
-devops-toolkit doctor --format json --fail-on-warning
-```
-
-Doctor validates Python runtime support, configuration health, OS and package manager readiness, disk monitoring paths, logging permissions, Slack alerting, and patch management settings. The JSON mode is designed for GitHub Actions and other CI systems.
-
-**File Permissions Audit:**
-
-- Scans configured paths for security issues
-- Detects world-writable files/directories
-- Configurable exclusion paths
-- Security vulnerability detection
-
-**Cron Job Audit:**
-
-- Lists system crontab entries
-- Scans `/etc/cron.d/` directory
-- Lists user crontabs
-- Detects malformed entries
-
-## Slack Notifications
-
-### Severity Levels
-
-- **INFO** (Green): Normal operations, successful updates
-- **WARNING** (Orange): Threshold exceeded, attention needed
-- **CRITICAL** (Red): Service down, critical issues
-
-### Notification Format
-
-Each notification includes:
-
-- Hostname
-- Timestamp
-- Module name
-- Severity level
-- Detailed information
-- Color-coded for quick identification
-
-### Setting Up Slack Webhook
-
-1. Go to your Slack workspace
-2. Navigate to Apps → Incoming Webhooks
-3. Create a new webhook
-4. Copy the webhook URL
-5. Add to configuration file
-
-## Cron Setup
-
-### Automated Scheduling
-
-The installer can configure cron jobs automatically. Manual setup:
-
-```bash
-# Daily at 2:00 AM
-0 2 * * * /usr/local/bin/devops-toolkit run >> /var/log/devops_toolkit.log 2>&1
-
-# Every 6 hours
-0 */6 * * * /usr/local/bin/devops-toolkit run >> /var/log/devops_toolkit.log 2>&1
-
-# Weekly on Sunday at 2:00 AM
-0 2 * * 0 /usr/local/bin/devops-toolkit run >> /var/log/devops_toolkit.log 2>&1
-```
-
-### Monitoring Only (More Frequent)
-
-```bash
-# Every hour - monitoring only
-0 * * * * /usr/local/bin/devops-toolkit monitor >> /var/log/devops_toolkit.log 2>&1
-```
-
-## Development
-
-### Setup Development Environment
-
-```bash
-# Clone repository
-git clone https://github.com/sameeralam3127/devops-toolkit.git
-cd devops-toolkit
-
-# Install with development dependencies
-make install-dev
-
-# Or using uv (faster)
-make install-uv
-```
-
-### Available Make Commands
-
-```bash
-make help           # Show all available commands
-make install        # Install production dependencies
-make install-dev    # Install development dependencies
-make test           # Run tests with coverage
-make lint           # Run all linters
-make format         # Format code with black and ruff
-make check          # Run all checks (format, lint, test)
-make pre-commit     # Install pre-commit hooks
-make clean          # Clean build artifacts
-```
-
-### Code Quality Tools
-
-This project uses modern Python tooling:
-
-- **Black**: Code formatting
-- **Ruff**: Fast Python linter
-- **Pylint**: Code analysis
-- **Bandit**: Security checks
-- **Mypy**: Type checking
-- **Pytest**: Testing framework
-- **Pre-commit**: Git hooks for code quality
-
-### Running Tests
-
-```bash
-# Run all tests with coverage
-make test
-
-# Run specific test file
-pytest tests/test_config_loader.py -v
-
-# Run with coverage report
-pytest --cov=app --cov-report=html
-```
-
-If your workstation has the `pytest-ansible` plugin installed globally and tests fail while trying to write under your home directory, set a writable Ansible temp directory:
-
-```bash
-make test ANSIBLE_LOCAL_TEMP=/tmp
-```
-
-### Code Formatting
-
-```bash
-# Format all code
-make format
-
-# Check formatting without changes
-black --check app tests
-```
-
-### Linting
-
-```bash
-# Run all linters
-make lint
-
-# Run specific linter
-ruff check app
-pylint app
-bandit -r app
-```
-
-## Advanced Usage
-
-### Custom Configuration Path
-
-```bash
-devops-toolkit --config /path/to/custom/config.yaml run
-```
-
-### Test Mode
-
-Test configuration and Slack connection without making changes:
-
-```bash
-devops-toolkit test
-```
-
-Output includes:
-
-- Configuration validation
-- Slack connection test
-- Dry-run of all checks
-- Summary report
-
-### Dry-Run Mode
-
-Run patch management without applying changes:
-
-```bash
-devops-toolkit --dry-run patch
-```
-
-### Service Management (Python API)
-
-```python
-from app.maintenance.service_manager import ServiceManager
-from app.core.notifier import SlackNotifier
-
-notifier = SlackNotifier(webhook_url='...')
-service_mgr = ServiceManager(notifier)
-
-# Restart a service
-success, message = service_mgr.restart_service('nginx')
-
-# Get service status
-is_active, status = service_mgr.get_service_status('nginx')
-```
-
-## Logging
-
-### Log Location
-
-Default: `/var/log/devops_toolkit.log`
-
-### Log Format
-
-```
-2024-01-15 14:30:45 - devops_toolkit - INFO - patch_manager:apply_updates:125 - Starting system update process
-```
-
-### Log Rotation
-
-- Maximum size: 10MB (configurable)
-- Backup count: 5 files (configurable)
-- Automatic rotation when size exceeded
-
-### Viewing Logs
-
-```bash
-# View recent logs
-tail -f /var/log/devops_toolkit.log
-
-# Search for errors
-grep ERROR /var/log/devops_toolkit.log
-
-# View specific module logs
-grep "patch_manager" /var/log/devops_toolkit.log
-```
-
-## Security Considerations
-
-1. **Root Access**: Required for system operations
-2. **Slack Webhook**: Keep webhook URL secure
-3. **File Permissions**: Config file should be readable only by root
-4. **Audit Logs**: Review regularly for security issues
-5. **World-Writable Files**: Address findings from file permission audits
-
-### Securing Configuration
-
-```bash
-sudo chmod 600 /etc/devops_toolkit/config.yaml
-sudo chown root:root /etc/devops_toolkit/config.yaml
-```
+Homebrew packages are left installed; the script prints the command to remove them.
 
 ## Troubleshooting
 
-### Common Issues
+**Icons show as boxes or `?`** — the Nerd Font isn't installed or selected.
+Run `brew install --cask font-jetbrains-mono-nerd-font` and make sure you're using a devterm profile.
 
-**1. Permission Denied**
+**"Dynamic profile … conflicts with non-dynamic profile with same Guid"** — you
+imported a devterm JSON through _Settings → Import JSON_. Delete that copy in
+_Settings → Profiles_; devterm profiles should only live in the `DynamicProfiles` folder.
 
-```bash
-# Run with sudo
-sudo devops-toolkit run
-```
+**Terminal.app profile wasn't added** — the first run asks to let your terminal
+control Terminal.app. If you declined, allow it in _System Settings → Privacy &
+Security → Automation_ and rerun with `--app terminal`.
 
-For read-only checks, try a command that does not need package-manager access:
+**Terminal.app colors look wrong** — Terminal.app supports 24-bit color only on
+macOS 26 and later. On older macOS, use iTerm2.
 
-```bash
-devops-toolkit doctor
-devops-toolkit report
-```
+**Prompt didn't change** — if you use Oh My Zsh, set `ZSH_THEME=""` in `~/.zshrc`,
+and remove any other `starship init` lines. Then run `exec zsh`.
 
-**2. Slack Notifications Not Working**
+**Font too big/small** — rerun `./install.sh -p <profile> -f <size>`, or change
+it in the app's profile settings.
 
-- Verify webhook URL in config
-- Test connection: `devops-toolkit test`
-- Check network connectivity
-- Temporarily set `slack.enabled: false` if you want to test the rest of the toolkit without Slack
+## Adding a theme
 
-**3. Module Not Found**
+Themes are small JSON files; the iTerm2 and Terminal.app profiles and the Starship config are generated from them.
 
-```bash
-# Reinstall dependencies
-sudo pip3 install -r requirements.txt
-```
+1. Copy `themes/midnight.json` to `themes/<name>.json` and change the colors
+   (`ansi` is the 16-color palette: 0–7 normal, 8–15 bright).
+2. Run `python3 tools/build.py` — this writes `profiles/<name>/`.
+3. Test with `./install.sh -p <name>`.
+4. _(optional)_ Run `./tools/record-demo.sh` to record `docs/demo-<name>.gif`
+   (needs `brew install vhs ffmpeg`).
+5. Open a PR with the theme, the generated files and the GIF.
 
-If you installed from a clone, reinstall the package in your active virtual environment:
-
-```bash
-pip install -e .
-```
-
-**4. Cron Job Not Running**
-
-```bash
-# Check cron logs
-grep devops-toolkit /var/log/syslog
-
-# Verify cron entry
-crontab -l | grep devops-toolkit
-```
-
-## Uninstallation
-
-```bash
-sudo bash uninstall.sh
-```
-
-The uninstaller will:
-
-- Remove cron jobs
-- Remove installation files
-- Optionally remove configuration
-- Optionally remove logs
-- Optionally remove Python dependencies
+Shared prompt layout lives in `templates/starship.toml.tmpl`; terminal settings live in `tools/build.py`.
+CI checks that generated files are up to date (`python3 tools/build.py --check`).
 
 ## License
 
-See LICENSE file for details.
-
-## Contributing
-
-Contributions are welcome! Please ensure:
-
-- Code follows PEP 8 style guidelines
-- All modules include proper error handling
-- Documentation is updated
-- Tests pass successfully
-
-## Support
-
-For issues, questions, or contributions:
-
-- Check logs: `/var/log/devops_toolkit.log`
-- Run test mode: `devops-toolkit test`
-- Review configuration: `/etc/devops_toolkit/config.yaml`
-
-## Best Practices
-
-1. **Start with Test Mode**: Always test before production use
-2. **Configure Thresholds**: Adjust based on your environment
-3. **Monitor Slack Alerts**: Set up appropriate channels
-4. **Regular Audits**: Run audits weekly or monthly
-5. **Review Logs**: Check logs regularly for issues
-6. **Backup Configuration**: Keep config backups
-7. **Update Regularly**: Keep toolkit and dependencies updated
-
-## Example Workflows
-
-### Daily Monitoring
-
-```bash
-# Cron: Every 6 hours
-0 */6 * * * /usr/local/bin/devops-toolkit monitor
-```
-
-### Weekly Maintenance
-
-```bash
-# Cron: Sunday at 2 AM
-0 2 * * 0 /usr/local/bin/devops-toolkit run
-```
-
-### Monthly Audits
-
-```bash
-# Cron: First day of month at 3 AM
-0 3 1 * * /usr/local/bin/devops-toolkit audit
-```
-
----
-
-**DevOps Toolkit** - Production-ready system monitoring and maintenance for Linux servers.
+MIT
