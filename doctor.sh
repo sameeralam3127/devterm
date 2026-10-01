@@ -204,7 +204,8 @@ check_iterm() {
   ok "profiles: $names"
 
   guid="$(plist_get "$ITERM_PREFS" "Default Bookmark Guid")"
-  name="$( [ -n "$guid" ] && iterm_profile_name "$guid" || true)"
+  name=""
+  if [ -n "$guid" ]; then name="$(iterm_profile_name "$guid")"; fi
   case "$name" in
     "devterm · "*)
       ok "new windows use \"$name\""
