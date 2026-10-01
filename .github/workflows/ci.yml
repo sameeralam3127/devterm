@@ -21,7 +21,7 @@ jobs:
         with:
           persist-credentials: false
       - name: ShellCheck
-        run: shellcheck -x install.sh uninstall.sh lib/common.sh tools/record-demo.sh
+        run: shellcheck -x install.sh uninstall.sh doctor.sh lib/common.sh tools/record-demo.sh
       - name: Generated profiles are up to date
         run: python3 tools/build.py --check
 
@@ -37,6 +37,14 @@ jobs:
         run: ./install.sh --profile daylight --app terminal --dry-run --yes
       - name: Uninstall (dry run)
         run: ./uninstall.sh --dry-run --yes
+      # Nothing is installed on the runner, so problems are expected (exit 1);
+      # anything else, or no summary, means doctor.sh itself broke
+      - name: Doctor runs to completion
+        run: |
+          set +e
+          ./doctor.sh | tee doctor.log
+          rc=${PIPESTATUS[0]}
+          [ "$rc" -le 1 ] && grep -q "Summary" doctor.log
       # Same as the README's curl one-liners, but for the commit under test
       - name: Curl install (bash -c form)
         env:

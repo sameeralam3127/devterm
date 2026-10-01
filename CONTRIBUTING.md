@@ -25,6 +25,7 @@ Everything else uses tools that ship with macOS (`bash` 3.2, `python3`, `osascri
 | `make lint`    | ShellCheck all scripts                                   |
 | `make build`   | Regenerate `profiles/` from `themes/`                    |
 | `make check`   | Fail if `profiles/` is out of date (CI runs this)        |
+| `make doctor`  | Check your own setup (read-only)                         |
 | `make demo`    | Re-record `docs/demo-*.gif` (needs `brew install vhs ffmpeg`) |
 
 ### Testing without touching your own setup

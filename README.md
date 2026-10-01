@@ -195,7 +195,37 @@ Installed with curl? The uninstaller is in `~/.devterm/src`:
 
 Homebrew packages are left installed; the script prints the command to remove them.
 
+## Check your setup
+
+Run the doctor any time something looks off. It changes nothing; it just checks
+your setup and tells you how to fix each problem:
+
+```bash
+./doctor.sh                  # from the repo (or: make doctor)
+~/.devterm/src/doctor.sh     # if you installed with curl
+```
+
+```
+==> Shell (~/.zshrc)
+    ✓ devterm block present
+    ! Starship is also started outside the devterm block (line 9), so it runs twice
+      → delete line 9 of ~/.zshrc
+
+==> Terminal.app
+    ! new Terminal.app windows use "Ocean", not a devterm profile
+      → Terminal → Settings → Profiles → devterm · … → Default
+    ✗ "Ocean" has Display ANSI colors turned off, so the prompt has no colors
+```
+
+It checks Starship, the Nerd Font and eza; your `~/.zshrc` (devterm block, a
+second `starship init`, Oh My Zsh themes); that the Starship config loads; the
+iTerm2 and Terminal.app profiles, including which one new windows use and whether
+it matches the prompt's theme; and whether the current window supports 24-bit
+color and Nerd Font icons. It exits with status 1 if it finds a problem.
+
 ## Troubleshooting
+
+Start with `./doctor.sh` — it detects most of the issues below.
 
 **Icons show as boxes or `?`** — the Nerd Font isn't installed or selected.
 Run `brew install --cask font-jetbrains-mono-nerd-font` and make sure you're using a devterm profile.
