@@ -235,12 +235,7 @@ EOF_PREREQS
 }
 
 check_guid_conflict() {
-  local guid="$1"
-  command -v defaults >/dev/null 2>&1 || return 0
-  # capture first: with pipefail, `defaults | grep -q` can fail on SIGPIPE after a match
-  local bookmarks
-  bookmarks="$(defaults read com.googlecode.iterm2 "New Bookmarks" 2>/dev/null || true)"
-  if printf '%s' "$bookmarks" | grep -qi "$guid"; then
+  if iterm_imported_copy "$1"; then
     warn "iTerm2 has a regular (imported) profile with the same GUID as this one."
     warn "Delete it in iTerm2 → Settings → Profiles, or iTerm will report a Dynamic Profiles error."
   fi
@@ -415,6 +410,8 @@ main() {
     info "  Terminal: Settings → Profiles → select \"devterm · $DISPLAY_NAME\" → Default"
   fi
   info "  Then open a new tab (or run: exec zsh)"
+  echo
+  info "Something look wrong? Check your setup: $(pretty_path "$REPO_DIR")/doctor.sh"
 }
 
 main "$@"

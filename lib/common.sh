@@ -117,4 +117,21 @@ terminal_has_devterm_profiles() {
   case "$prefs" in *'"devterm '*) return 0 ;; *) return 1 ;; esac
 }
 
+# iterm_imported_copy GUID — true if iTerm2 has a regular (imported, non-dynamic)
+# profile with this GUID. iTerm2 also lists dynamic profiles in its prefs, but
+# marks them with "Dynamic Profile Filename", so those don't count.
+iterm_imported_copy() {
+  local prefs="$HOME/Library/Preferences/com.googlecode.iterm2.plist" count i
+  count="$(plutil -extract "New Bookmarks" raw -o - "$prefs" 2>/dev/null || echo 0)"
+  i=0
+  while [ "$i" -lt "$count" ]; do
+    if [ "$(plutil -extract "New Bookmarks.$i.Guid" raw -o - "$prefs" 2>/dev/null)" = "$1" ] \
+       && ! plutil -extract "New Bookmarks.$i.Dynamic Profile Filename" raw -o - "$prefs" >/dev/null 2>&1; then
+      return 0
+    fi
+    i=$((i + 1))
+  done
+  return 1
+}
+
 iterm_running() { command -v pgrep >/dev/null 2>&1 && pgrep -x iTerm2 >/dev/null 2>&1; }

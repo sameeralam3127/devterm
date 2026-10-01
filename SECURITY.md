@@ -27,7 +27,7 @@ advisory unless you'd rather stay anonymous.
 
 ## What's in scope
 
-- `install.sh`, `uninstall.sh`, `lib/common.sh` — anything that could run
+- `install.sh`, `uninstall.sh`, `doctor.sh`, `lib/common.sh` — anything that could run
   unintended commands, overwrite or delete files outside what the
   [README](README.md#what-it-changes) documents, or leak data
 - the `curl … | bash` install path and how it downloads the repo
