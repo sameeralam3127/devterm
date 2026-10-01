@@ -170,6 +170,8 @@
 	</data>
 	<key>CursorType</key>
 	<integer>0</integer>
+	<key>DisableANSIColor</key>
+	<false/>
 	<key>Font</key>
 	<data>
 	YnBsaXN0MDDUAQIDBAUGGBtZJGFyY2hpdmVyWCRvYmplY3RzVCR0b3BYJHZlcnNpb25f
