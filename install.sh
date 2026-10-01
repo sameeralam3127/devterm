@@ -295,6 +295,14 @@ install_terminal_profile() {
   rm -f "${tmp:?}/${name:?}.terminal"; rmdir "$tmp"
   osascript -e "tell application \"Terminal\" to set font size of settings set \"$name\" to $FONT_SIZE"
   ok "installed \"$name\" (font size $FONT_SIZE)"
+  TERMINAL_INSTALLED=1
+  # New windows use Terminal's default profile; built-ins like "Ocean" have no Nerd Font
+  # icons and some turn ANSI colors off, which breaks the prompt (#7). Offer to switch.
+  if [ "$SET_DEFAULT" -eq 0 ] && [ "$SET_TERMINAL_DEFAULT" -eq 0 ] \
+     && [ -t 0 ] && [ "$ASSUME_YES" -eq 0 ] \
+     && confirm "Use \"$name\" for new Terminal.app windows?"; then
+    SET_TERMINAL_DEFAULT=1
+  fi
 }
 
 install_starship_config() {
@@ -354,7 +362,7 @@ $MARK_END"
 set_default_profile() {
   [ "$SET_DEFAULT" -eq 1 ] || [ "$SET_TERMINAL_DEFAULT" -eq 1 ] || return 0
   step "Default profile"
-  if want terminal; then
+  if want terminal && { [ "$TERMINAL_INSTALLED" -eq 1 ] || [ "$DRY_RUN" -eq 1 ]; }; then
     run osascript -e "tell application \"Terminal\"" \
       -e "set default settings to settings set \"devterm · $DISPLAY_NAME\"" \
       -e "set startup settings to settings set \"devterm · $DISPLAY_NAME\"" -e "end tell"
@@ -394,6 +402,7 @@ main() {
   BACKUP_DIR="$STATE_DIR/backups/$(date +%Y%m%d-%H%M%S)"
 
   SET_TERMINAL_DEFAULT=0
+  TERMINAL_INSTALLED=0
 
   install_deps
   if want iterm; then install_iterm_profile; fi
@@ -411,8 +420,9 @@ main() {
     [ "$SET_DEFAULT" -eq 1 ] || info "            → Other Actions → Set as Default"
     info "            Optional: Settings → Appearance → General → Theme: Minimal"
   fi
-  if want terminal && [ "$SET_DEFAULT" -eq 0 ]; then
+  if want terminal && [ "$SET_DEFAULT" -eq 0 ] && [ "$SET_TERMINAL_DEFAULT" -eq 0 ]; then
     info "  Terminal: Settings → Profiles → select \"devterm · $DISPLAY_NAME\" → Default"
+    info "            (other profiles lack the Nerd Font, so icons show as ?)"
   fi
   info "  Then open a new tab (or run: exec zsh)"
 }

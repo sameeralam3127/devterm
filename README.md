@@ -208,6 +208,12 @@ _Settings → Profiles_; devterm profiles should only live in the `DynamicProfil
 control Terminal.app. If you declined, allow it in _System Settings → Privacy &
 Security → Automation_ and rerun with `--app terminal`.
 
+**Terminal.app shows `?` icons or a plain white prompt** — the window isn't
+using the devterm profile. Built-in profiles don't have the Nerd Font, and some
+(like _Ocean_) have _Display ANSI colors_ turned off. Pick **devterm · &lt;Theme&gt;**
+in _Terminal → Settings → Profiles_ and click **Default**, or rerun
+`./install.sh --app terminal --set-default`.
+
 **Terminal.app colors look wrong** — Terminal.app supports 24-bit color only on
 macOS 26 and later. On older macOS, use iTerm2.
 
