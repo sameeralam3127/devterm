@@ -158,6 +158,7 @@ def terminal_profile(t):
         "CursorType": 0, "CursorBlink": True,        # 0 = block
         "useOptionAsMetaKey": True, "shellExitAction": 1,  # close if the shell exited cleanly
         "Bell": False, "VisualBell": True,
+        "DisableANSIColor": False,  # some built-in profiles (e.g. Ocean) turn colors off
         "BackgroundColor": ns_color(t["background"]), "TextColor": ns_color(t["foreground"]),
         "TextBoldColor": ns_color(t["foreground"]), "CursorColor": ns_color(t["cursor"]),
         "SelectionColor": ns_color(t["selection"]),
