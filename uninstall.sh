@@ -54,15 +54,28 @@ fi
 
 step "Starship config"
 backup=""
-[ -f "$STATE_DIR/last_backup" ] && backup="$(cat "$STATE_DIR/last_backup")"
-if [ -n "$backup" ] && [ -f "$backup/$(basename "$STARSHIP_CFG")" ]; then
-  run cp -p "$backup/$(basename "$STARSHIP_CFG")" "$STARSHIP_CFG"
+original_backup=""
+[ -f "$STATE_DIR/original_starship_backup" ] && original_backup="$(cat "$STATE_DIR/original_starship_backup")"
+if [ -z "$original_backup" ] && [ -f "$STATE_DIR/last_backup" ]; then
+  backup="$(cat "$STATE_DIR/last_backup")"
+  original_backup="$backup/$(basename "$STARSHIP_CFG")"
+fi
+if [ -n "$original_backup" ] && [ -f "$original_backup" ]; then
+  run cp -p "$original_backup" "$STARSHIP_CFG"
   ok "restored your previous starship.toml"
 elif [ -f "$STARSHIP_CFG" ] && head -n 1 "$STARSHIP_CFG" | grep -q '^# devterm'; then
   run rm -f "$STARSHIP_CFG"; ok "removed $(pretty_path "$STARSHIP_CFG")"
 else
   info "left $(pretty_path "$STARSHIP_CFG") untouched (not managed by devterm)"
 fi
+if [ -f "$STATE_DIR/original_starship_backup" ]; then
+  run rm -f "$STATE_DIR/original_starship_backup"
+fi
+
+step "DevTerm tools"
+for f in "$STATE_DIR/bin/devterm" "$STATE_DIR/shell/devterm.zsh"; do
+  if [ -f "$f" ]; then run rm -f "$f"; ok "removed $(pretty_path "$f")"; fi
+done
 
 if [ "$PURGE" -eq 1 ]; then
   step "State"

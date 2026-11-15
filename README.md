@@ -3,7 +3,8 @@
 Opinionated **Starship** setup for **iTerm2** and **macOS Terminal.app**, for
 developers and SREs. Clone it, pick a theme, run one script — and get a terminal
 that shows you what matters: git state, Kubernetes context, cloud profile,
-language versions, and (in iTerm2) log errors highlighted as they scroll by.
+language versions, production safety guards, and (in iTerm2) log errors
+highlighted as they scroll by.
 
 ![devterm demo — Midnight theme](docs/demo-midnight.gif)
 
@@ -140,6 +141,35 @@ more than one and switch between them.
 **Shell** — adds a managed block to `~/.zshrc` with the Starship init and
 [eza](https://github.com/eza-community/eza) aliases (`ls`, `ll`, `la`, `lt`) with icons and git status.
 
+### DevTerm Guard
+
+DevTerm detects the environment targeted by the current shell. Run this any time:
+
+```bash
+devterm context
+```
+
+Kubernetes contexts, AWS profiles, Terraform workspaces and hosts containing
+`prod`, `production` or `live` are treated as production. In iTerm2, a large
+`PRODUCTION` badge is displayed; both supported terminals get a production tab
+title. Before a clearly destructive production command runs, DevTerm asks you
+to type the target context. Guarded operations include Kubernetes deletes and
+drains, Terraform destroy/state removal, selected AWS delete operations, and
+Git force pushes.
+
+```bash
+kubectl delete deployment api
+# devterm Guard: blocked a destructive kubectl command
+# Target: production-us-east
+# Type 'production-us-east' to continue:
+
+devterm-unlock 5   # allow guarded commands in this shell for five minutes
+devterm-lock       # lock it again immediately
+```
+
+Set `DEVTERM_PROD_PATTERN` to customize production names, or install with
+`--no-guard` to keep the context inspector without command wrappers and badges.
+
 ## Options
 
 ```
@@ -151,6 +181,7 @@ more than one and switch between them.
   -l, --list             List available profiles
       --set-default      Make the profile the default (for iTerm2, quit it first)
       --no-eza           Don't install eza or add the ls aliases
+      --no-guard         Don't enable badges or destructive-command guards
       --skip-brew        Don't install anything with Homebrew
   -n, --dry-run          Show what would change without changing anything
   -y, --yes              Don't ask for confirmation
@@ -174,6 +205,8 @@ Examples:
 | Terminal.app → Settings → Profiles                                            | A **devterm · &lt;Theme&gt;** profile (importing it opens one preview window)        |
 | `~/.config/starship.toml`                                                     | Starship config — your existing one is backed up first                               |
 | `~/.zshrc`                                                                    | One block between `# >>> devterm >>>` and `# <<< devterm <<<` — backed up first      |
+| `~/.devterm/bin/devterm`                                                      | Context inspector command                                                            |
+| `~/.devterm/shell/devterm.zsh`                                                | Production badges and interactive command guards                                     |
 | `~/.devterm/`                                                                 | Backups and install state                                                            |
 
 Homebrew packages are installed only if missing — see [Prerequisites](#prerequisites).

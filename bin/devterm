@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+# devterm — inspect the environment targeted by the current terminal session.
+set -euo pipefail
+
+PROD_PATTERN="${DEVTERM_PROD_PATTERN:-prod|production|live}"
+
+usage() {
+  cat <<'USAGE'
+Usage: devterm context [--tsv]
+       devterm is-production [VALUE ...]
+
+Commands:
+  context          Show the current Git, Kubernetes, AWS and Terraform context
+  is-production    Exit 0 when a value matches DEVTERM_PROD_PATTERN
+
+Environment:
+  DEVTERM_PROD_PATTERN  Extended regular expression used to identify production
+                        contexts (default: prod|production|live)
+USAGE
+}
+
+matches_production() {
+  [ $# -gt 0 ] || return 1
+  printf '%s\n' "$@" | grep -Eiq -- "$PROD_PATTERN"
+}
+
+git_context() {
+  command -v git >/dev/null 2>&1 || return 0
+  git rev-parse --show-toplevel >/dev/null 2>&1 || return 0
+  local root branch
+  root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+  branch="$(git branch --show-current 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || true)"
+  printf '%s|%s' "${root##*/}" "$branch"
+}
+
+kube_context() {
+  command -v kubectl >/dev/null 2>&1 || return 0
+  kubectl config current-context 2>/dev/null || true
+}
+
+kube_namespace() {
+  command -v kubectl >/dev/null 2>&1 || return 0
+  local ns
+  ns="$(kubectl config view --minify --output 'jsonpath={..namespace}' 2>/dev/null || true)"
+  printf '%s' "${ns:-default}"
+}
+
+terraform_workspace() {
+  command -v terraform >/dev/null 2>&1 || return 0
+  [ -d .terraform ] || return 0
+  terraform workspace show 2>/dev/null || true
+}
+
+context_values() {
+  GIT_CONTEXT="$(git_context)"
+  KUBE_CONTEXT="${DEVTERM_KUBE_CONTEXT_OVERRIDE:-$(kube_context)}"
+  KUBE_NAMESPACE="$(kube_namespace)"
+  AWS_CONTEXT="${DEVTERM_AWS_PROFILE_OVERRIDE:-${AWS_PROFILE:-${AWS_DEFAULT_PROFILE:-}}}"
+  TERRAFORM_CONTEXT="$(terraform_workspace)"
+  HOST_CONTEXT="${DEVTERM_HOST_OVERRIDE:-${HOST:-$(hostname -s 2>/dev/null || true)}}"
+  PRODUCTION_CONTEXT=""
+  local value
+  for value in "$KUBE_CONTEXT" "$AWS_CONTEXT" "$TERRAFORM_CONTEXT" "$HOST_CONTEXT"; do
+    if [ -n "$value" ] && matches_production "$value"; then
+      PRODUCTION_CONTEXT="$value"
+      break
+    fi
+  done
+}
+
+show_context() {
+  context_values
+  if [ "${1:-}" = "--tsv" ]; then
+    # Tabs preserve spaces in paths and names for the zsh integration.
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+      "$GIT_CONTEXT" "$KUBE_CONTEXT" "$KUBE_NAMESPACE" "$AWS_CONTEXT" \
+      "$TERRAFORM_CONTEXT" "$HOST_CONTEXT" "$PRODUCTION_CONTEXT"
+    return 0
+  fi
+  printf 'Git:        %s\n' "${GIT_CONTEXT:-—}"
+  printf 'Kubernetes: %s' "${KUBE_CONTEXT:-—}"
+  [ -z "$KUBE_CONTEXT" ] || printf ' (namespace: %s)' "$KUBE_NAMESPACE"
+  printf '\nAWS:        %s\n' "${AWS_CONTEXT:-—}"
+  printf 'Terraform:  %s\n' "${TERRAFORM_CONTEXT:-—}"
+  printf 'Host:       %s\n' "${HOST_CONTEXT:-—}"
+  if [ -n "$PRODUCTION_CONTEXT" ]; then
+    printf 'Safety:     PRODUCTION (%s)\n' "$PRODUCTION_CONTEXT"
+  else
+    printf 'Safety:     standard\n'
+  fi
+}
+
+case "${1:-}" in
+  context)
+    shift
+    case "${1:-}" in ""|--tsv) show_context "${1:-}" ;; *) usage >&2; exit 2 ;; esac
+    ;;
+  is-production)
+    shift
+    matches_production "$@"
+    ;;
+  -h|--help|help|"") usage ;;
+  *) usage >&2; exit 2 ;;
+esac

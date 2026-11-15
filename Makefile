@@ -1,4 +1,4 @@
-.PHONY: install uninstall build check lint list demo doctor
+.PHONY: install uninstall build check lint test list demo doctor
 
 install:            ## Interactive install
 	./install.sh
@@ -13,7 +13,11 @@ check:              ## Verify generated files are up to date
 	python3 tools/build.py --check
 
 lint:               ## ShellCheck the scripts
-	shellcheck -x install.sh uninstall.sh doctor.sh lib/common.sh tools/record-demo.sh
+	shellcheck -x install.sh uninstall.sh doctor.sh lib/common.sh tools/record-demo.sh bin/devterm tests/test_guard.sh
+	zsh -n shell/devterm.zsh
+
+test:               ## Run context, guard and backup lifecycle tests
+	./tests/test_guard.sh
 
 doctor:             ## Check the setup and explain how to fix problems
 	./doctor.sh

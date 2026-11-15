@@ -21,7 +21,7 @@ jobs:
         with:
           persist-credentials: false
       - name: ShellCheck
-        run: shellcheck -x install.sh uninstall.sh doctor.sh lib/common.sh tools/record-demo.sh
+        run: shellcheck -x install.sh uninstall.sh doctor.sh lib/common.sh tools/record-demo.sh bin/devterm tests/test_guard.sh
       - name: Generated profiles are up to date
         run: python3 tools/build.py --check
 
@@ -31,6 +31,10 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+      - name: Guard tests
+        run: |
+          zsh -n shell/devterm.zsh
+          ./tests/test_guard.sh
       - name: Install (dry run, all apps)
         run: ./install.sh --profile midnight --dry-run --yes
       - name: Install (dry run, Terminal.app only)

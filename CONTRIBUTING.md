@@ -23,6 +23,7 @@ Everything else uses tools that ship with macOS (`bash` 3.2, `python3`, `osascri
 | Command        | What it does                                             |
 | -------------- | -------------------------------------------------------- |
 | `make lint`    | ShellCheck all scripts                                   |
+| `make test`    | Test context detection, guards and backup restoration    |
 | `make build`   | Regenerate `profiles/` from `themes/`                    |
 | `make check`   | Fail if `profiles/` is out of date (CI runs this)        |
 | `make doctor`  | Check your own setup (read-only)                         |

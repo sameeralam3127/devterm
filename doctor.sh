@@ -93,6 +93,12 @@ check_tools() {
       caution "the ls aliases need eza, which isn't installed (ls still works)" "run: brew install eza"
     fi
   fi
+  if [ -x "$STATE_DIR/bin/devterm" ]; then
+    ok "DevTerm context inspector"
+    if [ -f "$STATE_DIR/shell/devterm.zsh" ]; then ok "DevTerm Guard"; fi
+  elif [ -f "$ZSHRC" ] && grep -qF '.devterm/bin' "$ZSHRC"; then
+    problem "the DevTerm context inspector is missing" "rerun: $INSTALL"
+  fi
 }
 
 check_shell() {

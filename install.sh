@@ -43,6 +43,7 @@ FONT_SIZE=""
 APP="all"
 SKIP_BREW=0
 WITH_EZA=1
+WITH_GUARD=1
 SET_DEFAULT=0
 
 usage() {
@@ -57,6 +58,7 @@ Options:
   -l, --list             List available profiles and exit
       --set-default      Make the profile the default (for iTerm2, quit it first)
       --no-eza           Don't install eza or add the ls aliases
+      --no-guard         Don't enable context badges or destructive-command guards
       --skip-brew        Don't install anything with Homebrew
   -n, --dry-run          Show what would change without changing anything
   -y, --yes              Don't ask for confirmation
@@ -89,6 +91,7 @@ parse_args() {
       -l|--list)      echo "Available profiles:"; list_profiles; exit 0 ;;
       --set-default)  SET_DEFAULT=1 ;;
       --no-eza)       WITH_EZA=0 ;;
+      --no-guard)     WITH_GUARD=0 ;;
       --skip-brew)    SKIP_BREW=1 ;;
       -n|--dry-run)   DRY_RUN=1 ;;
       -y|--yes)       ASSUME_YES=1 ;;
@@ -297,10 +300,28 @@ install_starship_config() {
   local src="$PROFILES_DIR/$PROFILE/starship.toml"
   if [ -f "$STARSHIP_CFG" ] && ! head -n 1 "$STARSHIP_CFG" | grep -q '^# devterm'; then
     backup_file "$STARSHIP_CFG" "$BACKUP_DIR"
+    if [ "$DRY_RUN" -eq 0 ] && [ ! -f "$STATE_DIR/original_starship_backup" ]; then
+      mkdir -p "$STATE_DIR"
+      printf '%s\n' "$BACKUP_DIR/$(basename "$STARSHIP_CFG")" > "$STATE_DIR/original_starship_backup"
+    fi
   fi
   run mkdir -p "$(dirname "$STARSHIP_CFG")"
   run cp "$src" "$STARSHIP_CFG"
   ok "wrote $(pretty_path "$STARSHIP_CFG")"
+}
+
+install_runtime() {
+  step "DevTerm tools"
+  run mkdir -p "$STATE_DIR/bin" "$STATE_DIR/shell"
+  run cp "$REPO_DIR/bin/devterm" "$STATE_DIR/bin/devterm"
+  run chmod +x "$STATE_DIR/bin/devterm"
+  if [ "$WITH_GUARD" -eq 1 ]; then
+    run cp "$REPO_DIR/shell/devterm.zsh" "$STATE_DIR/shell/devterm.zsh"
+    ok "installed context inspector and production guard"
+  else
+    if [ "$DRY_RUN" -eq 0 ]; then rm -f "$STATE_DIR/shell/devterm.zsh"; fi
+    ok "installed context inspector (guard disabled)"
+  fi
 }
 
 install_zsh_block() {
@@ -323,6 +344,7 @@ install_zsh_block() {
   local block
   block="$MARK_START
 # Managed by devterm — changes inside this block are overwritten on reinstall.
+export PATH=\"\$HOME/.devterm/bin:\$PATH\"
 if command -v starship >/dev/null 2>&1; then
   eval \"\$(starship init zsh)\"
 fi"
@@ -335,6 +357,12 @@ if command -v eza >/dev/null 2>&1; then
   alias lt='eza --tree --level=2 --icons'
 fi"
   fi
+  if [ "$WITH_GUARD" -eq 1 ]; then
+    block="$block
+if [ -f \"\$HOME/.devterm/shell/devterm.zsh\" ]; then
+  source \"\$HOME/.devterm/shell/devterm.zsh\"
+fi"
+  fi
   block="$block
 $MARK_END"
 
@@ -343,7 +371,7 @@ $MARK_END"
   else
     printf '\n%s\n' "$block" >> "$ZSHRC"
   fi
-  ok "added Starship init$( [ "$WITH_EZA" -eq 1 ] && echo " and eza aliases")"
+  ok "added Starship init$( [ "$WITH_EZA" -eq 1 ] && echo ", eza aliases")$( [ "$WITH_GUARD" -eq 1 ] && echo " and DevTerm Guard")"
 }
 
 set_default_profile() {
@@ -394,6 +422,7 @@ main() {
   if want iterm; then install_iterm_profile; fi
   if want terminal; then install_terminal_profile; fi
   install_starship_config
+  install_runtime
   install_zsh_block
   set_default_profile
   save_state
@@ -410,6 +439,9 @@ main() {
     info "  Terminal: Settings → Profiles → select \"devterm · $DISPLAY_NAME\" → Default"
   fi
   info "  Then open a new tab (or run: exec zsh)"
+  if [ "$WITH_GUARD" -eq 1 ]; then
+    info "  Safety: run 'devterm context' to inspect your current environment"
+  fi
   echo
   info "Something look wrong? Check your setup: $(pretty_path "$REPO_DIR")/doctor.sh"
 }
